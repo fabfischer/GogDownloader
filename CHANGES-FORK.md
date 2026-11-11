@@ -17,6 +17,11 @@ get one entry each. Files that only exist in the fork are listed once per area.
 - `bin/app.php`: loads the autoloader from `$GLOBALS['_composer_autoload_path']` when Composer's bin proxy sets it,
   so the CLI also runs as `vendor/bin/app.php` in another project. Falls back to `../vendor/autoload.php`.
   Test: `tests/Fork/BinaryAsDependencyTest.php`.
+- `composer.json`: the Symfony requirements allow 7.x next to 6.x (`^6.0 || ^7.0`), so projects on Symfony 7.4 LTS
+  can use the package. Symfony 6.4's bug-fix support ends 11/2026, 7.4 LTS gets bug fixes until 11/2028
+  ([symfony.com/releases](https://symfony.com/releases)).
+- `composer.lock`: Symfony 6.4.x → 7.4.x for every runtime component (transitive ones pinned to 7.4 too, not 8.x).
+  CI therefore tests 7.4; 6.4 is still allowed but no longer tested here.
 - `composer.json`: dev dependencies `phpunit/phpunit ^13.4` and `phpstan/phpstan ^2.3`; `autoload-dev` for
   `App\Tests\` → `tests/`. Runtime requirements unchanged.
 - `composer.lock`: security updates within the existing constraints (no major versions): Guzzle 7.13.1 → 7.16.1,
