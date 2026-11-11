@@ -13,7 +13,8 @@ Read [FORK.md](FORK.md) first, then [CHANGES-FORK.md](CHANGES-FORK.md) and
    focused commits. Don't reformat upstream code. Log every change to an upstream file in `CHANGES-FORK.md`.
    Keep fixes that upstream could use free of fork-only files, so they can become upstream pull requests.
 3. **This repository is public.** Never commit secrets: GOG tokens, signed download URLs, storage credentials, API
-   keys. Don't add personal data, private host names, internal ticket numbers or links to private systems. Commit
+   keys. Don't add personal data, private host names, internal ticket numbers, links to private systems or
+   references to private documents (specifications, decision records). Comments explain their reasons themselves. Commit
    messages carry no `#123` references: on GitHub they would link to unrelated issues.
 4. **No real game files.** Installers and other proprietary binaries never go into the repository, test fixtures
    or CI. Tests use synthetic data (`tests/Support/`).

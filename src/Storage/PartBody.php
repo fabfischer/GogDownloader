@@ -7,9 +7,8 @@ namespace App\Storage;
 use InvalidArgumentException;
 
 /**
- * The bytes of one part, held in a seekable memory stream (ADR "upload part bodies in memory"): backends may read a
- * part more than once (checksums, request signing, retries), and a PHP string or a caching stream would end up in
- * temporary files.
+ * The bytes of one part, held in a seekable memory stream: backends may read a part more than once (checksums,
+ * request signing, retries), and a PHP string or a caching stream would end up in temporary files.
  */
 final readonly class PartBody
 {
