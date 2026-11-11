@@ -60,6 +60,10 @@ get one entry each. Files that only exist in the fork are listed once per area.
     - handles pause and cancel, resume with reconciliation, a commit gate for deduplication, and a size check after
       commit.
   This new path avoids findings F2–F4. Upstream's own `DownloadManager` is unchanged.
+- `tests/Integration/` and the compose profile `test` in `docker/dev/compose.yaml`: a fake GOG source
+  (`tests/Integration/FakeGog/`), an S3-compatible server (Versity S3 Gateway) and a Nextcloud with a quota-limited
+  test user (`docker/dev/nextcloud-hooks/`). Run with `make test-integration`, also as the `integration` job of
+  `.github/workflows/fork-tests.yml`. `phpunit.xml.dist` keeps them out of the default run (`defaultTestSuite`).
 - `tests/Fork/Transfer/`, `tests/Support/RecordingHttpClient.php`: unit tests for sources, planner and engine.
 - `tests/Fork/Storage/`: unit tests, and `ArchiveStorageAdapterContractTestCase`, which every adapter's tests
   extend.

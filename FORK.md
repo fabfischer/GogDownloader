@@ -54,10 +54,24 @@ Everything runs in Docker; no PHP is needed on the host. `make help` lists every
 make build                       # build the dev image (docker/dev/)
 make composer c="install"        # install dependencies
 make ci                          # Composer checks, code style, PHPStan, PHPUnit (same as GitHub Actions)
-make test c="--filter S3"        # PHPUnit only
+make test c="--filter S3"        # PHPUnit only (unit and characterization tests)
+make test-integration            # start fake GOG source, S3 server and Nextcloud, run tests/Integration, stop them
 make cli c="list"                # run the CLI from source; state lives in the cli-config volume
 make clean                       # remove the dev containers and image
 ```
+
+## Integration test services
+
+`make test-integration` starts three disposable services (compose profile `test` in `docker/dev/compose.yaml`), runs
+`tests/Integration` and removes them again. `make test-services` keeps them running for development.
+
+| Service | Image | What it is for |
+|---|---|---|
+| `fake-gog` | the dev image, `tests/Integration/FakeGog/router.php` | A download source like GOG's CDN with synthetic pattern data of any size (generated per range, never stored), signed-URL expiry (`nva`), GOG-style download links and checksum XML, and switchable faults: range ignored, wrong range, wrong length, premature EOF, changed ETag or size, unknown size, 403, 404, 416, 429 with `Retry-After`, 500. `skip`, `fail-times` and `run` control when a fault happens. |
+| `s3` | `versity/versitygw` (pinned by digest) | S3-compatible server for multipart uploads, part listing, the 5 MiB part minimum, conditional create and access errors. MinIO no longer publishes images on Docker Hub (the repository answered "not found" on 2026-11-11), so the Versity S3 Gateway is used instead. |
+| `nextcloud` | `nextcloud` (pinned by digest), SQLite | WebDAV chunked upload v2, plus a test user with a 1 MB quota (`docker/dev/nextcloud-hooks/`) to trigger 507. |
+
+All credentials in the compose file are fixed test values for these throwaway containers.
 
 ## Syncing with upstream
 
