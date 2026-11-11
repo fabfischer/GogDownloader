@@ -1,0 +1,13 @@
+# Static analysis, run in Docker: make stan (see AGENTS.md).
+# Existing upstream findings live in phpstan-baseline.neon so that only new code has to be clean.
+# Regenerate the baseline only when upstream code changes (upstream merge): make stan-baseline
+includes:
+    - phpstan-baseline.neon
+
+parameters:
+    level: 8
+    paths:
+        - src
+        - tests
+    tmpDir: var/cache/phpstan
+    treatPhpDocTypesAsCertain: false

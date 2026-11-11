@@ -1,0 +1,733 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Parameter \#1 \$messages of method Symfony\\Component\\Console\\Style\\SymfonyStyle\:\:writeln\(\) expects iterable\|string, bool\|float\|int\|string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/ConfigCommand.php
+
+		-
+			message: '#^Anonymous function should return App\\DTO\\GameDetail but returns App\\DTO\\GameDetail\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Command/DownloadCloudSavesCommand.php
+
+		-
+			message: '#^Parameter \#1 \$string of function trim expects string, string\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/DownloadCloudSavesCommand.php
+
+		-
+			message: '#^Parameter \#1 \$value of static method App\\Enum\\NamingConvention\:\:tryFrom\(\) expects int\|string, bool\|float\|int\|string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/DownloadCloudSavesCommand.php
+
+		-
+			message: '#^Parameter \#3 \$subject of function preg_replace expects array\<float\|int\|string\>\|string, string\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/DownloadCloudSavesCommand.php
+
+		-
+			message: '#^Property App\\Command\\DownloadCloudSavesCommand\:\:\$httpClient is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Command/DownloadCloudSavesCommand.php
+
+		-
+			message: '#^Anonymous function has an unused use \$englishFallback\.$#'
+			identifier: closure.unusedUse
+			count: 1
+			path: src/Command/DownloadCommand.php
+
+		-
+			message: '#^Anonymous function has an unused use \$output\.$#'
+			identifier: closure.unusedUse
+			count: 1
+			path: src/Command/DownloadCommand.php
+
+		-
+			message: '#^Anonymous function should return App\\DTO\\GameDetail but returns App\\DTO\\GameDetail\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Command/DownloadCommand.php
+
+		-
+			message: '#^Instanceof between App\\DTO\\GameExtra and App\\DTO\\GameExtra will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 1
+			path: src/Command/DownloadCommand.php
+
+		-
+			message: '#^Parameter \#1 \$string of function trim expects string, string\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/DownloadCommand.php
+
+		-
+			message: '#^Parameter \#1 \$value of static method App\\Enum\\NamingConvention\:\:tryFrom\(\) expects int\|string, bool\|float\|int\|string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/DownloadCommand.php
+
+		-
+			message: '#^Parameter \#3 \$subject of function preg_replace expects array\<float\|int\|string\>\|string, string\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/DownloadCommand.php
+
+		-
+			message: '#^Property App\\Command\\DownloadCommand\:\:\$iterables is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Command/DownloadCommand.php
+
+		-
+			message: '#^Unreachable statement \- code above always terminates\.$#'
+			identifier: deadCode.unreachable
+			count: 1
+			path: src/Command/DownloadCommand.php
+
+		-
+			message: '#^Call to an undefined method Symfony\\Component\\Console\\Helper\\HelperInterface\:\:ask\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Command/GamesCommand.php
+
+		-
+			message: '#^Method App\\Command\\LoginCodeCommand\:\:getCode\(\) should return string but returns array\<mixed\>\|string\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Command/LoginCodeCommand.php
+
+		-
+			message: '#^Parameter \#1 \$string of function parse_str expects string, string\|false\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/LoginCodeCommand.php
+
+		-
+			message: '#^Parameter \#1 \$string of function trim expects string, string\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/MigrateNamingSchemeCommand.php
+
+		-
+			message: '#^Parameter \#1 \$value of static method App\\Enum\\NamingConvention\:\:tryFrom\(\) expects int\|string, bool\|float\|int\|string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/MigrateNamingSchemeCommand.php
+
+		-
+			message: '#^Parameter \#1 \$value of static method App\\Enum\\NamingConvention\:\:tryFrom\(\) expects int\|string, bool\|float\|int\|string\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/MigrateNamingSchemeCommand.php
+
+		-
+			message: '#^Parameter \#3 \$subject of function preg_replace expects array\<float\|int\|string\>\|string, string\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/MigrateNamingSchemeCommand.php
+
+		-
+			message: '#^Anonymous function should return App\\DTO\\GameDetail but returns App\\DTO\\GameDetail\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Command/TotalSizeCommand.php
+
+		-
+			message: '#^Parameter \#1 \$messages of method Symfony\\Component\\Console\\Style\\SymfonyStyle\:\:writeln\(\) expects iterable\|string, float given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/TotalSizeCommand.php
+
+		-
+			message: '#^Property App\\Command\\TotalSizeCommand\:\:\$downloadManager is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Command/TotalSizeCommand.php
+
+		-
+			message: '#^Parameter \#1 \$max of method Symfony\\Component\\Console\\Style\\SymfonyStyle\:\:createProgressBar\(\) expects int, int\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Command/UpdateDatabaseCommand.php
+
+		-
+			message: '#^Class App\\DTO\\BuildInfoItem has an uninitialized readonly property \$branch\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/BuildInfoItem.php
+
+		-
+			message: '#^Class App\\DTO\\BuildInfoItem has an uninitialized readonly property \$buildId\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/BuildInfoItem.php
+
+		-
+			message: '#^Class App\\DTO\\BuildInfoItem has an uninitialized readonly property \$datePublished\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/BuildInfoItem.php
+
+		-
+			message: '#^Class App\\DTO\\BuildInfoItem has an uninitialized readonly property \$generation\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/BuildInfoItem.php
+
+		-
+			message: '#^Class App\\DTO\\BuildInfoItem has an uninitialized readonly property \$link\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/BuildInfoItem.php
+
+		-
+			message: '#^Class App\\DTO\\BuildInfoItem has an uninitialized readonly property \$os\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/BuildInfoItem.php
+
+		-
+			message: '#^Class App\\DTO\\BuildInfoItem has an uninitialized readonly property \$productId\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/BuildInfoItem.php
+
+		-
+			message: '#^Class App\\DTO\\BuildInfoItem has an uninitialized readonly property \$public\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/BuildInfoItem.php
+
+		-
+			message: '#^Class App\\DTO\\BuildInfoItem has an uninitialized readonly property \$tags\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/BuildInfoItem.php
+
+		-
+			message: '#^Class App\\DTO\\BuildInfoItem has an uninitialized readonly property \$versionName\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/BuildInfoItem.php
+
+		-
+			message: '#^Cannot call method completeMultipartUpload\(\) on Aws\\S3\\S3Client\|null\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: src/DTO/FileWriter/S3FileReference.php
+
+		-
+			message: '#^Cannot call method doesObjectExistV2\(\) on Aws\\S3\\S3Client\|null\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: src/DTO/FileWriter/S3FileReference.php
+
+		-
+			message: '#^Cannot call method putObjectTagging\(\) on Aws\\S3\\S3Client\|null\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: src/DTO/FileWriter/S3FileReference.php
+
+		-
+			message: '#^Parameter \#1 \$client of method App\\DTO\\FileWriter\\S3FileReference\:\:writeChunk\(\) expects Aws\\S3\\S3Client, Aws\\S3\\S3Client\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/DTO/FileWriter/S3FileReference.php
+
+		-
+			message: '#^Method App\\DTO\\FileWriter\\StreamWrapperFileReference\:\:open\(\) should return resource but returns resource\|false\.$#'
+			identifier: return.type
+			count: 1
+			path: src/DTO/FileWriter/StreamWrapperFileReference.php
+
+		-
+			message: '#^Property App\\DTO\\FileWriter\\StreamWrapperFileReference\:\:\$fileHandle \(resource\|null\) does not accept resource\|false\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: src/DTO/FileWriter/StreamWrapperFileReference.php
+
+		-
+			message: '#^Attribute class JetBrains\\PhpStorm\\Deprecated does not exist\.$#'
+			identifier: attribute.notFound
+			count: 1
+			path: src/DTO/GameDetail.php
+
+		-
+			message: '#^Method App\\DTO\\GameDetail\:\:__unserialize\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/DTO/GameDetail.php
+
+		-
+			message: '#^Class App\\DTO\\GameInfo has an uninitialized readonly property \$hasUpdates\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/GameInfo.php
+
+		-
+			message: '#^Class App\\DTO\\GameInfo has an uninitialized readonly property \$id\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/GameInfo.php
+
+		-
+			message: '#^Class App\\DTO\\GameInfo has an uninitialized readonly property \$isNew\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/GameInfo.php
+
+		-
+			message: '#^Class App\\DTO\\GameInfo has an uninitialized readonly property \$slug\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/GameInfo.php
+
+		-
+			message: '#^Class App\\DTO\\GameInfo has an uninitialized readonly property \$title\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/GameInfo.php
+
+		-
+			message: '#^Method App\\DTO\\GameInstaller\:\:__unserialize\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/DTO/GameInstaller.php
+
+		-
+			message: '#^Class App\\DTO\\MovieInfo has an uninitialized readonly property \$id\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/MovieInfo.php
+
+		-
+			message: '#^Class App\\DTO\\MovieInfo has an uninitialized readonly property \$title\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/MovieInfo.php
+
+		-
+			message: '#^Class App\\DTO\\MultipleValuesWrapper implements generic interface IteratorAggregate but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/DTO/MultipleValuesWrapper.php
+
+		-
+			message: '#^Method App\\DTO\\MultipleValuesWrapper\:\:__construct\(\) has parameter \$iterator with no value type specified in iterable type Traversable\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/DTO/MultipleValuesWrapper.php
+
+		-
+			message: '#^Method App\\DTO\\MultipleValuesWrapper\:\:__construct\(\) has parameter \$iterator with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/DTO/MultipleValuesWrapper.php
+
+		-
+			message: '#^Method App\\DTO\\MultipleValuesWrapper\:\:__construct\(\) has parameter \$iterator with no value type specified in iterable type array\|Traversable\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/DTO/MultipleValuesWrapper.php
+
+		-
+			message: '#^Property App\\DTO\\MultipleValuesWrapper\:\:\$iterator type has no value type specified in iterable type Traversable\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/DTO/MultipleValuesWrapper.php
+
+		-
+			message: '#^Class App\\DTO\\SaveGameFile has an uninitialized readonly property \$bytes\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/SaveGameFile.php
+
+		-
+			message: '#^Class App\\DTO\\SaveGameFile has an uninitialized readonly property \$contentType\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/SaveGameFile.php
+
+		-
+			message: '#^Class App\\DTO\\SaveGameFile has an uninitialized readonly property \$hash\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/SaveGameFile.php
+
+		-
+			message: '#^Class App\\DTO\\SaveGameFile has an uninitialized readonly property \$lastModified\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/SaveGameFile.php
+
+		-
+			message: '#^Class App\\DTO\\SaveGameFile has an uninitialized readonly property \$name\. Assign it in the constructor\.$#'
+			identifier: property.uninitializedReadonly
+			count: 1
+			path: src/DTO/SaveGameFile.php
+
+		-
+			message: '#^Method App\\DTO\\Url\:\:__construct\(\) has parameter \$query with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/DTO/Url.php
+
+		-
+			message: '#^Method App\\DTO\\UserData\\UserData\:\:__construct\(\) has parameter \$friends with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/DTO/UserData/UserData.php
+
+		-
+			message: '#^Method App\\DTO\\UserData\\UserData\:\:__construct\(\) has parameter \$personalizedProductPrices with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/DTO/UserData/UserData.php
+
+		-
+			message: '#^Method App\\DTO\\UserData\\UserData\:\:__construct\(\) has parameter \$personalizedSeriesPrices with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/DTO/UserData/UserData.php
+
+		-
+			message: '#^Method App\\DependencyInjection\\CommandLocatorCompilerPass\:\:setDefaultCommand\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: src/DependencyInjection/CommandLocatorCompilerPass.php
+
+		-
+			message: '#^Parameter \#1 \$callback of function call_user_func expects callable\(\)\: mixed, array\{string\|null, ''getCommandName''\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/DependencyInjection/CommandLocatorCompilerPass.php
+
+		-
+			message: '#^Parameter \#1 \$object_or_class of function is_a expects object\|string, string\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/DependencyInjection/CommandLocatorCompilerPass.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$value\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Enum/Setting.php
+
+		-
+			message: '#^Method App\\Exception\\TooManyRetriesException\:\:__construct\(\) has parameter \$exceptions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Exception/TooManyRetriesException.php
+
+		-
+			message: '#^Cannot call method fetchAll\(\) on PDOStatement\|false\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: src/Migration/Migration3.php
+
+		-
+			message: '#^Cannot access property \$clientId on App\\DTO\\OAuthCredentials\|null\.$#'
+			identifier: property.nonObject
+			count: 2
+			path: src/Service/CloudSavesManager.php
+
+		-
+			message: '#^Method App\\Service\\CloudSavesManager\:\:getGameSaves\(\) should return array\<App\\DTO\\SaveGameFile\> but returns array\<object\>\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Service/CloudSavesManager.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function array_filter expects \(callable\(object\)\: bool\)\|null, Closure\(App\\DTO\\SaveGameFile\)\: bool given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Service/CloudSavesManager.php
+
+		-
+			message: '#^Parameter \$content of class App\\DTO\\SaveFileContent constructor expects string, string\|false given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Service/CloudSavesManager.php
+
+		-
+			message: '#^Method App\\Service\\DownloadManager\:\:download\(\) has parameter \$curlOptions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/DownloadManager.php
+
+		-
+			message: '#^Parameter \#2 \$url of method Symfony\\Contracts\\HttpClient\\HttpClientInterface\:\:request\(\) expects string, string\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Service/DownloadManager.php
+
+		-
+			message: '#^Method App\\Service\\FileWriter\\FileWriterLocator\:\:__construct\(\) has parameter \$writers with generic interface App\\Service\\FileWriter\\FileWriter but does not specify its types\: T$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Service/FileWriter/FileWriterLocator.php
+
+		-
+			message: '#^Method App\\Service\\FileWriter\\FileWriterLocator\:\:getWriter\(\) return type with generic interface App\\Service\\FileWriter\\FileWriter does not specify its types\: T$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Service/FileWriter/FileWriterLocator.php
+
+		-
+			message: '#^Parameter \#1 \$value of static method App\\Enum\\S3StorageClass\:\:tryFrom\(\) expects int\|string, bool\|float\|int\|string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Service/FileWriter/S3FileWriter.php
+
+		-
+			message: '#^Method App\\Service\\FileWriter\\StreamWrapperFileWriter\:\:getMd5Hash\(\) should return string but returns string\|false\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Service/FileWriter/StreamWrapperFileWriter.php
+
+		-
+			message: '#^Method App\\Service\\FileWriter\\StreamWrapperFileWriter\:\:getSize\(\) should return int but returns int\<0, max\>\|false\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Service/FileWriter/StreamWrapperFileWriter.php
+
+		-
+			message: '#^Parameter \#2 \$data of function hash_update expects string, string\|false given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Service/FileWriter/StreamWrapperFileWriter.php
+
+		-
+			message: '#^Method App\\Service\\GameMetadataManager\:\:getBuildsInfo\(\) should return array\<App\\DTO\\BuildInfoItem\> but returns array\<object\>\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Service/GameMetadataManager.php
+
+		-
+			message: '#^Parameter \#1 \$json of function json_decode expects string, string\|false given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Service/GameMetadataManager.php
+
+		-
+			message: '#^Method App\\Service\\Iterables\:\:filter\(\) has parameter \$iterable with no value type specified in iterable type iterable\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/Iterables.php
+
+		-
+			message: '#^Method App\\Service\\Iterables\:\:filter\(\) return type has no value type specified in iterable type iterable\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/Iterables.php
+
+		-
+			message: '#^Method App\\Service\\Iterables\:\:map\(\) has parameter \$iterable with no value type specified in iterable type iterable\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/Iterables.php
+
+		-
+			message: '#^Method App\\Service\\Iterables\:\:map\(\) return type has no value type specified in iterable type iterable\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/Iterables.php
+
+		-
+			message: '#^Cannot access offset ''version'' on array\<string, mixed\>\|false\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: src/Service/MigrationManager.php
+
+		-
+			message: '#^Cannot call method fetch\(\) on PDOStatement\|false\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: src/Service/MigrationManager.php
+
+		-
+			message: '#^Parameter \#2 \$string of function explode expects string, string\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Service/NewVersionChecker.php
+
+		-
+			message: '#^Access to an undefined property App\\DTO\\OwnedItemInfo\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Service/OwnedItemsManager.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$downloads\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Service/OwnedItemsManager.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$extras\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Service/OwnedItemsManager.php
+
+		-
+			message: '#^Generator expects value type App\\DTO\\OwnedItemInfo, object given\.$#'
+			identifier: generator.valueType
+			count: 2
+			path: src/Service/OwnedItemsManager.php
+
+		-
+			message: '#^Parameter \#2 \$game of method App\\Service\\OwnedItemsManager\:\:setMd5\(\) expects App\\DTO\\GameDetail, object given\.$#'
+			identifier: argument.type
+			count: 2
+			path: src/Service/OwnedItemsManager.php
+
+		-
+			message: '#^Method App\\Service\\Persistence\\PersistenceManagerFiles\:\:normalize\(\) should return T but returns array\<mixed\>\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Service/Persistence/PersistenceManagerFiles.php
+
+		-
+			message: '#^Parameter \#1 \$json of function json_decode expects string, string\|false given\.$#'
+			identifier: argument.type
+			count: 4
+			path: src/Service/Persistence/PersistenceManagerFiles.php
+
+		-
+			message: '#^Attribute class JetBrains\\PhpStorm\\ExpectedValues does not exist\.$#'
+			identifier: attribute.notFound
+			count: 1
+			path: src/Service/Persistence/PersistenceManagerSqlite.php
+
+		-
+			message: '#^Cannot access offset ''id'' on array\<string, mixed\>\|false\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: src/Service/Persistence/PersistenceManagerSqlite.php
+
+		-
+			message: '#^Cannot access offset 0 on list\<mixed\>\|false\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: src/Service/Persistence/PersistenceManagerSqlite.php
+
+		-
+			message: '#^Method App\\Service\\Persistence\\PersistenceManagerSqlite\:\:getLocalGameData\(\) should return array\<App\\DTO\\GameDetail\>\|null but returns list\<object\>\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Service/Persistence/PersistenceManagerSqlite.php
+
+		-
+			message: '#^Method App\\Service\\RetryService\:\:retry\(\) has parameter \$exceptions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/RetryService.php
+
+		-
+			message: '#^Method App\\Service\\RetryService\:\:retry\(\) has parameter \$ignoreExceptions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/RetryService.php
+
+		-
+			message: '#^Method App\\Service\\Serializer\:\:deserialize\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/Serializer.php
+
+		-
+			message: '#^Method App\\Service\\Serializer\:\:deserialize\(\) has parameter \$json with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/Serializer.php
+
+		-
+			message: '#^PHPDoc tag @return with type App\\DTO\\MultipleValuesWrapper\|T is not subtype of native type object\.$#'
+			identifier: return.phpDocType
+			count: 1
+			path: src/Service/Serializer.php
+
+		-
+			message: '#^PHPDoc tag @return with type T is not subtype of native type object\.$#'
+			identifier: return.phpDocType
+			count: 1
+			path: src/Service/Serializer.php
+
+		-
+			message: '#^Method App\\Service\\Serializer\\GameDetailNormalizer\:\:normalize\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/Serializer/GameDetailNormalizer.php
+
+		-
+			message: '#^Method App\\Service\\Serializer\\GameDetailNormalizer\:\:normalize\(\) has parameter \$value with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/Serializer/GameDetailNormalizer.php
+
+		-
+			message: '#^Method App\\Service\\Serializer\\GameExtraNormalizer\:\:normalize\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/Serializer/GameExtraNormalizer.php
+
+		-
+			message: '#^Method App\\Service\\Serializer\\GameExtraNormalizer\:\:normalize\(\) has parameter \$value with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/Serializer/GameExtraNormalizer.php
+
+		-
+			message: '#^Method App\\Service\\Serializer\\GameInstallerNormalizer\:\:normalize\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/Serializer/GameInstallerNormalizer.php
+
+		-
+			message: '#^Method App\\Service\\Serializer\\GameInstallerNormalizer\:\:normalize\(\) has parameter \$value with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/Serializer/GameInstallerNormalizer.php
+
+		-
+			message: '#^Method App\\Service\\Serializer\\MultipleValuesNormalizer\:\:normalize\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/Serializer/MultipleValuesNormalizer.php
+
+		-
+			message: '#^Method App\\Service\\Serializer\\MultipleValuesNormalizer\:\:normalize\(\) has parameter \$value with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/Serializer/MultipleValuesNormalizer.php
+
+		-
+			message: '#^Method App\\Service\\Serializer\\SerializerNormalizer\:\:normalize\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/Serializer/SerializerNormalizer.php
+
+		-
+			message: '#^Method App\\Service\\Serializer\\SerializerNormalizer\:\:normalize\(\) has parameter \$value with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/Serializer/SerializerNormalizer.php
+
+		-
+			message: '#^Method App\\Service\\WebAuthentication\:\:getCode\(\) should return string\|null but returns array\<mixed\>\|string\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Service/WebAuthentication.php
+
+		-
+			message: '#^Parameter \#1 \$string of function parse_str expects string, string\|false given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Service/WebAuthentication.php
