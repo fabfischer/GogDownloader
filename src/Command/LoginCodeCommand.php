@@ -53,7 +53,7 @@ final class LoginCodeCommand extends Command
         if (!$code = $input->getArgument('code')) {
             $code = $io->ask('Code or web address', validator: new NonEmptyValidator());
         }
-        $code = $this->getCode($code);
+        $code = $this->extractCode($code);
         $this->authenticationManager->codeLogin($code);
 
         $io->success('Logged in successfully.');
@@ -61,7 +61,7 @@ final class LoginCodeCommand extends Command
         return self::SUCCESS;
     }
 
-    private function getCode(string $code): string
+    private function extractCode(string $code): string
     {
         if (!str_starts_with($code, 'https://')) {
             return $code;

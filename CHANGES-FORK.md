@@ -10,6 +10,10 @@ get one entry each. Files that only exist in the fork are listed once per area.
 
 ### Changed (upstream files)
 
+- `src/Command/LoginCodeCommand.php`: the private helper `getCode()` is now `extractCode()`. Symfony Console 7.4
+  added a public `Command::getCode()`, and a private method of the same name is a fatal error in PHP, so the whole CLI
+  died on 7.4 (even `list`). Behaviour is unchanged; works on Symfony 6.4 and 7.4. The PHPStan baseline entry for
+  upstream's existing return-type finding follows the rename.
 - `bin/app.php`: loads the autoloader from `$GLOBALS['_composer_autoload_path']` when Composer's bin proxy sets it,
   so the CLI also runs as `vendor/bin/app.php` in another project. Falls back to `../vendor/autoload.php`.
   Test: `tests/Fork/BinaryAsDependencyTest.php`.

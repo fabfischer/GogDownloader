@@ -97,7 +97,7 @@ parameters:
 			path: src/Command/GamesCommand.php
 
 		-
-			message: '#^Method App\\Command\\LoginCodeCommand\:\:getCode\(\) should return string but returns array\<mixed\>\|string\.$#'
+			message: '#^Method App\\Command\\LoginCodeCommand\:\:extractCode\(\) should return string but returns array\<mixed\>\|string\.$#'
 			identifier: return.type
 			count: 1
 			path: src/Command/LoginCodeCommand.php
