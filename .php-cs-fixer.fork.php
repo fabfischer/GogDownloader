@@ -12,6 +12,6 @@ $config = require __DIR__ . '/.php-cs-fixer.dist.php';
 assert($config instanceof PhpCsFixer\Config);
 
 return $config
-    ->setFinder((new PhpCsFixer\Finder())->in([__DIR__ . '/tests', __DIR__ . '/src/Storage']))
+    ->setFinder((new PhpCsFixer\Finder())->in([__DIR__ . '/tests', __DIR__ . '/src/Storage', __DIR__ . '/src/Transfer']))
     ->setRiskyAllowed(true)
     ->setCacheFile(__DIR__ . '/var/cache/php-cs-fixer.fork.cache');
