@@ -30,7 +30,7 @@ get one entry each. Files that only exist in the fork are listed once per area.
 - `composer.lock`: security updates within the existing constraints (no major versions): Guzzle 7.13.1 → 7.16.1,
   Symfony 6.4.x components → 6.4.49/6.4.50, transitive Symfony 7.4.x → 7.4.22/7.4.23, and their dependencies.
   Fixes the advisories `composer audit` reported for v1.15.1 ([findings](docs/fork/findings.md), F10).
-- `.php-cs-fixer.fork.php` (fork-only) now also checks `src/Storage/`.
+- `.php-cs-fixer.fork.php` (fork-only) now also checks `src/Storage/` and `src/Transfer/`.
 - `.gitignore`: a "Fork additions" block (`/var/`, `/.phpunit.cache/`). Upstream lines unchanged.
 
 ### Added (fork-only files)
@@ -44,6 +44,23 @@ get one entry each. Files that only exist in the fork are listed once per area.
   - exceptions that tell the caller how to react;
   - `InMemory\InMemoryStorageAdapter`, a complete fake with failure injection for tests.
   No upstream code uses it yet; the S3 and Nextcloud adapters follow.
+- `src/Transfer/` (namespace `App\Transfer`): moves one file from a source to a storage target in bounded parts.
+  - `Source\HttpRangeSource` reads bounded ranges from a signed URL. It checks status 206, the exact
+    `Content-Range`, length, total size and validators on every response; uses `buffer => false`; never sends an
+    auth header; follows redirects only to allowlisted https hosts; and refreshes the URL on 403/410 or before
+    `nva` expiry.
+  - `Source\SequentialSource` is the non-resumable fallback for sources without range support.
+  - `ChunkPlanner` (16 MiB default, grows to stay within 10,000 parts, refuses parts above the target limit or the
+    memory budget).
+  - `TransferEngine`:
+    - holds each part in memory and hashes SHA-256 and MD5 on copies of the state;
+    - checkpoints only after the target acknowledged a part;
+    - retries with backoff (re-reading the source, or re-sending the same buffer);
+    - aborts when the source changed;
+    - handles pause and cancel, resume with reconciliation, a commit gate for deduplication, and a size check after
+      commit.
+  This new path avoids findings F2–F4. Upstream's own `DownloadManager` is unchanged.
+- `tests/Fork/Transfer/`, `tests/Support/RecordingHttpClient.php`: unit tests for sources, planner and engine.
 - `tests/Fork/Storage/`: unit tests, and `ArchiveStorageAdapterContractTestCase`, which every adapter's tests
   extend.
 - `tests/` (characterization tests of upstream code, fake GOG API, fork tests), `phpunit.xml.dist`,
