@@ -12,7 +12,8 @@
          failOnDeprecation="true"
          failOnPhpunitDeprecation="true"
          displayDetailsOnTestsThatTriggerDeprecations="true"
-         displayDetailsOnTestsThatTriggerWarnings="true">
+         displayDetailsOnTestsThatTriggerWarnings="true"
+         defaultTestSuite="upstream,fork">
     <testsuites>
         <!-- Characterization tests of upstream GogDownloader code (src/, namespace App\). -->
         <testsuite name="upstream">
@@ -21,6 +22,10 @@
         <!-- Behaviour the fork adds or changes. -->
         <testsuite name="fork">
             <directory>tests/Fork</directory>
+        </testsuite>
+        <!-- Needs the test services: make test-integration. Not part of the default run. -->
+        <testsuite name="integration">
+            <directory>tests/Integration</directory>
         </testsuite>
     </testsuites>
 

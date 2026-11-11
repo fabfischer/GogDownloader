@@ -1,6 +1,8 @@
-# Fork-only workflow: Composer checks, code style, PHPStan and PHPUnit, the same as `make ci` locally.
+# Fork-only workflow: Composer checks, code style, PHPStan and PHPUnit (`make ci`), and the integration tests against
+# local test services (`make test-integration`), the same as locally.
 # Runs on GitHub-hosted runners with Docker; uses no secrets. Upstream's build-latest.yaml and release.yaml publish
-# to Docker Hub with upstream's credentials and are disabled in this fork (the files stay unchanged).
+# to Docker Hub with upstream's credentials: build-latest is disabled in this fork, and release only runs on v* tags,
+# which this fork doesn't push (the files stay unchanged).
 name: Fork tests
 
 on:
@@ -34,3 +36,23 @@ jobs:
 
       - name: Checks (tools/ci.sh)
         run: make ci
+
+  integration:
+    # The same disposable test services as `make test-integration` locally: fake GOG source, S3-compatible server
+    # (Versity S3 Gateway) and Nextcloud, all synthetic, with fixed test-only credentials from docker/dev/compose.yaml.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the dev image
+        run: make build
+
+      - name: Install dependencies from the lock file
+        run: make composer c="install --no-progress --prefer-dist --no-interaction"
+
+      - name: Integration tests (starts and stops the test services)
+        run: make test-integration

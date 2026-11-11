@@ -1,6 +1,21 @@
-# Development tooling for the fork: one PHP container for Composer, tests, static analysis and the CLI.
-# Use it through the Makefile in the repository root (make help). Paths are relative to this file.
+# Development tooling for the fork: one PHP container for Composer, tests, static analysis and the CLI, plus
+# disposable test services in the "test" profile (make test-integration). Paths are relative to this file.
+#
+# Everything in the "test" profile is synthetic and local: the fake GOG source serves generated pattern data, the
+# S3 server and Nextcloud keep their data in the container and lose it on `down`. The credentials below are fixed
+# test values for these throwaway containers, not secrets.
 name: gogdownloader-dev
+
+x-test-credentials: &test-credentials
+  ITEST_FAKE_GOG_URL: http://fake-gog:8080
+  ITEST_S3_ENDPOINT: http://s3:7070
+  ITEST_S3_ACCESS_KEY: test-access-key
+  ITEST_S3_SECRET_KEY: test-secret-key-not-real
+  ITEST_NEXTCLOUD_URL: http://nextcloud
+  ITEST_NEXTCLOUD_USER: test-admin
+  ITEST_NEXTCLOUD_PASSWORD: test-only-password-not-secret
+  ITEST_NEXTCLOUD_QUOTA_USER: quota-user
+  ITEST_NEXTCLOUD_QUOTA_PASSWORD: test-quota-password-not-secret
 
 services:
   php:
@@ -11,11 +26,66 @@ services:
     working_dir: /app
     entrypoint: ["docker-php-entrypoint"]
     command: ["bash"]
+    environment:
+      <<: *test-credentials
     volumes:
       - ../..:/app
       - composer-cache:/composer
       - cli-config:/var/lib/gog-cli/config
       - cli-downloads:/var/lib/gog-cli/downloads
+
+  # Fake GOG download source: ranges, signed-URL expiry and injectable faults (tests/Integration/FakeGog/router.php).
+  fake-gog:
+    profiles: ["test"]
+    image: gogdownloader-dev:local
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    working_dir: /app
+    entrypoint: ["php", "-S", "0.0.0.0:8080", "tests/Integration/FakeGog/router.php"]
+    environment:
+      PHP_CLI_SERVER_WORKERS: "4"
+    volumes:
+      - ../..:/app
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/health') === 'ok' ? 0 : 1);"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  # S3-compatible server: Versity S3 Gateway on a tmpfs. MinIO no longer publishes images on Docker Hub
+  # (repository "minio/minio" not found, checked 2026-11-11).
+  s3:
+    profiles: ["test"]
+    image: versity/versitygw:v1.10.0@sha256:89cad13cc981986ee284cbafea4613f9533ce6fd5f37a2c96c4c4fb8adb3a316
+    command: ["posix", "/data"]
+    environment:
+      ROOT_ACCESS_KEY: test-access-key
+      ROOT_SECRET_KEY: test-secret-key-not-real
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "7070"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  # Nextcloud with SQLite, installed on first start with a test admin; the hook adds a 1 MB-quota user.
+  nextcloud:
+    profiles: ["test"]
+    image: nextcloud:35.0.2-apache@sha256:786c102155d2717ba0f53a62b3fdd7a1354edc48e800b94dbe32294d9a5752a2
+    environment:
+      SQLITE_DATABASE: nextcloud
+      NEXTCLOUD_ADMIN_USER: test-admin
+      NEXTCLOUD_ADMIN_PASSWORD: test-only-password-not-secret
+      NEXTCLOUD_TRUSTED_DOMAINS: nextcloud localhost
+      NEXTCLOUD_QUOTA_USER_PASSWORD: test-quota-password-not-secret
+    volumes:
+      - ./nextcloud-hooks:/docker-entrypoint-hooks.d/post-installation:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost/status.php | grep -q '\"installed\":true'"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
 
 volumes:
   composer-cache: {}
