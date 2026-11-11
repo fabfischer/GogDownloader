@@ -45,13 +45,13 @@ test: ## Run PHPUnit, optionally filtered: make test c="--filter OwnedItems"
 	$(RUN) php vendor/bin/phpunit $(c)
 
 .PHONY: test-integration
-test-integration: ## Start the test services (fake GOG source, S3, Nextcloud), run the integration tests, stop them
-	$(DC) --profile test up -d --wait fake-gog s3 nextcloud || { $(DC) --profile test logs --tail 40; $(DC) --profile test down --remove-orphans; exit 1; }
+test-integration: ## Start the test services (fake GOG source, S3, two Nextclouds), run the integration tests, stop them
+	$(DC) --profile test up -d --wait fake-gog s3 nextcloud nextcloud-objectstore || { $(DC) --profile test logs --tail 40; $(DC) --profile test down --remove-orphans; exit 1; }
 	$(RUN) php vendor/bin/phpunit --testsuite integration $(c); status=$$?; $(DC) --profile test down --remove-orphans; exit $$status
 
 .PHONY: test-services
 test-services: ## Start the test services and keep them running (stop with: make test-services-down)
-	$(DC) --profile test up -d --wait fake-gog s3 nextcloud
+	$(DC) --profile test up -d --wait fake-gog s3 nextcloud nextcloud-objectstore
 
 .PHONY: test-services-down
 test-services-down: ## Stop the test services and drop their data

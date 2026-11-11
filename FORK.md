@@ -10,7 +10,7 @@ library by a separate, self-hosted archiving application, so it needs things the
 - a storage contract for archive targets with an in-memory implementation and reusable contract tests
   (`src/Storage/`, added),
 - resumable uploads with upload state that a caller can save and resume in another process: to S3 and
-  S3-compatible storage (`src/Storage/S3/`, added) and to Nextcloud over WebDAV (planned).
+  S3-compatible storage (`src/Storage/S3/`, added) and to Nextcloud over WebDAV (`src/Storage/Nextcloud/`, added).
 
 The original command-line tool keeps working. Upstream's README describes how to use it.
 
@@ -55,23 +55,26 @@ make build                       # build the dev image (docker/dev/)
 make composer c="install"        # install dependencies
 make ci                          # Composer checks, code style, PHPStan, PHPUnit (same as GitHub Actions)
 make test c="--filter S3"        # PHPUnit only (unit and characterization tests)
-make test-integration            # start fake GOG source, S3 server and Nextcloud, run tests/Integration, stop them
+make test-integration            # start fake GOG source, S3 server and Nextclouds, run tests/Integration, stop them
 make cli c="list"                # run the CLI from source; state lives in the cli-config volume
 make clean                       # remove the dev containers and image
 ```
 
 ## Integration test services
 
-`make test-integration` starts three disposable services (compose profile `test` in `docker/dev/compose.yaml`), runs
+`make test-integration` starts the disposable services below (compose profile `test` in `docker/dev/compose.yaml`), runs
 `tests/Integration` and removes them again. `make test-services` keeps them running for development.
 
 | Service | Image | What it is for |
 |---|---|---|
 | `fake-gog` | the dev image, `tests/Integration/FakeGog/router.php` | A download source like GOG's CDN with synthetic pattern data of any size (generated per range, never stored), signed-URL expiry (`nva`), GOG-style download links and checksum XML, and switchable faults: range ignored, wrong range, wrong length, premature EOF, changed ETag or size, unknown size, 403, 404, 416, 429 with `Retry-After`, 500. `skip`, `fail-times` and `run` control when a fault happens. |
 | `s3` | `versity/versitygw` (pinned by digest) | S3-compatible server for multipart uploads, part listing, the 5 MiB part minimum, conditional create and access errors. MinIO no longer publishes images on Docker Hub (the repository answered "not found" on 2026-11-11), so the Versity S3 Gateway is used instead. |
-| `nextcloud` | `nextcloud` (pinned by digest), SQLite | WebDAV chunked upload v2, plus a test user with a 1 MB quota (`docker/dev/nextcloud-hooks/`) to trigger 507. |
+| `nextcloud` | `nextcloud` (pinned by digest), SQLite | WebDAV chunked upload v2 with files on local storage: Nextcloud assembles the chunks on the final `MOVE`. A test user with a 1 MB quota (`docker/dev/nextcloud-hooks/`) triggers 507. |
+| `nextcloud-objectstore` | the same image | The same with object storage as primary storage (a bucket on `s3`) and `valkey` as distributed cache. Only this combination runs Nextcloud's chunked-write code path, which lists, checks and loses uploads differently. |
+| `valkey` | `valkey/valkey` (pinned by digest) | Redis-compatible cache for `nextcloud-objectstore`; tests flush it to simulate a lost upload. |
 
-All credentials in the compose file are fixed test values for these throwaway containers.
+All credentials in the compose file are fixed test values for these throwaway containers. Brute force protection is
+off in both Nextclouds, because tests send wrong passwords on purpose.
 
 ## Syncing with upstream
 

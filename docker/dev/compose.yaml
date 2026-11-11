@@ -2,8 +2,8 @@
 # disposable test services in the "test" profile (make test-integration). Paths are relative to this file.
 #
 # Everything in the "test" profile is synthetic and local: the fake GOG source serves generated pattern data, the
-# S3 server and Nextcloud keep their data in the container and lose it on `down`. The credentials below are fixed
-# test values for these throwaway containers, not secrets.
+# S3 server, both Nextclouds and Valkey keep their data in the containers and lose it on `down`. The credentials below
+# are fixed test values for these throwaway containers, not secrets.
 name: gogdownloader-dev
 
 x-test-credentials: &test-credentials
@@ -16,6 +16,8 @@ x-test-credentials: &test-credentials
   ITEST_NEXTCLOUD_PASSWORD: test-only-password-not-secret
   ITEST_NEXTCLOUD_QUOTA_USER: quota-user
   ITEST_NEXTCLOUD_QUOTA_PASSWORD: test-quota-password-not-secret
+  ITEST_NEXTCLOUD_OBJECTSTORE_URL: http://nextcloud-objectstore
+  ITEST_VALKEY_HOST: valkey
 
 services:
   php:
@@ -86,6 +88,51 @@ services:
       timeout: 5s
       retries: 60
       start_period: 30s
+
+  # A second Nextcloud with object storage as primary storage (a bucket on the S3 test server) and Valkey as its
+  # distributed cache. Only this combination runs Nextcloud's own chunked-write code path for uploads; the plain
+  # Nextcloud above assembles chunks on the final MOVE. The two behave differently (listing, size checks, cache loss),
+  # so the Nextcloud adapter is tested against both.
+  nextcloud-objectstore:
+    profiles: ["test"]
+    image: nextcloud:35.0.2-apache@sha256:786c102155d2717ba0f53a62b3fdd7a1354edc48e800b94dbe32294d9a5752a2
+    depends_on:
+      s3: {condition: service_healthy}
+      valkey: {condition: service_healthy}
+    environment:
+      SQLITE_DATABASE: nextcloud
+      NEXTCLOUD_ADMIN_USER: test-admin
+      NEXTCLOUD_ADMIN_PASSWORD: test-only-password-not-secret
+      NEXTCLOUD_TRUSTED_DOMAINS: nextcloud-objectstore localhost
+      NEXTCLOUD_QUOTA_USER_PASSWORD: test-quota-password-not-secret
+      REDIS_HOST: valkey
+      OBJECTSTORE_S3_BUCKET: nextcloud-primary
+      OBJECTSTORE_S3_HOST: s3
+      OBJECTSTORE_S3_PORT: "7070"
+      OBJECTSTORE_S3_SSL: "false"
+      OBJECTSTORE_S3_USEPATH_STYLE: "true"
+      OBJECTSTORE_S3_AUTOCREATE: "true"
+      OBJECTSTORE_S3_REGION: us-east-1
+      OBJECTSTORE_S3_KEY: test-access-key
+      OBJECTSTORE_S3_SECRET: test-secret-key-not-real
+    volumes:
+      - ./nextcloud-hooks:/docker-entrypoint-hooks.d/post-installation:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost/status.php | grep -q '\"installed\":true'"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+
+  # Distributed cache for nextcloud-objectstore (Redis protocol). Tests flush it to simulate a lost upload session.
+  valkey:
+    profiles: ["test"]
+    image: valkey/valkey:8.1.11-alpine@sha256:2602ace2be6569bc2bbb06f873776516ab9089821525be34f4305c67eb9db02a
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
 
 volumes:
   composer-cache: {}

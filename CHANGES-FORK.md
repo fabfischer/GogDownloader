@@ -45,7 +45,7 @@ get one entry each. Files that only exist in the fork are listed once per area.
   - exceptions that tell the caller how to react, including `UnexpectedStorageResponse` for answers an adapter
     cannot classify;
   - `InMemory\InMemoryStorageAdapter`, a complete fake with failure injection for tests.
-  No upstream code uses it; the Nextcloud adapter follows.
+  No upstream code uses it.
 - `src/Storage/S3/`: `S3StorageAdapter`, the storage contract on S3 multipart uploads, for AWS and S3-compatible
   services, with `S3Settings` (endpoint, region, bucket, prefix, path-style, TLS and CA bundle, optional session token
   and storage class, part limits, timeouts) and `S3ChecksumMode`.
@@ -63,6 +63,24 @@ get one entry each. Files that only exist in the fork are listed once per area.
   - Exceptions name operation, S3 error code, HTTP status and request ID; they don't chain the SDK exception, which
     holds the signed request.
   Measurements: [findings](docs/fork/findings.md#s3-part-uploads-s3-compatible-test-server).
+- `src/Storage/Nextcloud/`: `NextcloudStorageAdapter`, the storage contract on Nextcloud's WebDAV chunked upload
+  (version 2), with `NextcloudSettings` (base URL, also in a subdirectory; login name and app password; user ID for
+  the WebDAV paths; folder; TLS and CA bundle; part limits; idle and assembly timeouts).
+  - One upload folder per object, named `gog-archive-` plus 32 hex digits; chunks `00001`…`10000`; a final `MOVE` of
+    `.file` with `Overwrite: F`, so Nextcloud refuses to replace an existing file. Sessions carry the folder name and
+    the target (base URL, user ID, folder), never the password; sessions of other targets or with other folder
+    names are refused, so nothing outside the target's folder and the adapter's own upload folders is touched.
+  - `begin()` creates missing parent folders (deepest first, upwards only on 409) and checks that the key is free
+    before it opens the upload: with object storage, Nextcloud changes the recorded size of an existing file that
+    an upload is aimed at.
+  - `complete()` checks that the upload folder holds exactly the chunks 1…n with their sizes before the `MOVE`: with
+    object storage, Nextcloud assembles whatever chunks exist without checking the total. A repeated `complete()`
+    after a lost answer returns the stored file.
+  - Error handling for 404 on a chunk (upload folder gone, or destination folder deleted: created again), 412
+    (Nextcloud's cache lost the upload), 413 from a proxy, 423 while a file is assembled, 507, 401/403, 5xx, and
+    connections that break without an answer. No retries inside the adapter, no redirects followed.
+  - `MultiStatus` and `DavEntry` read PROPFIND answers without loading anything from the network.
+  Measurements and server behaviour: [findings](docs/fork/findings.md#nextcloud-chunked-uploads-test-nextclouds).
 - `src/Transfer/` (namespace `App\Transfer`): moves one file from a source to a storage target in bounded parts.
   - `Source\HttpRangeSource` reads bounded ranges from a signed URL. It checks status 206, the exact
     `Content-Range`, length, total size and validators on every response; uses `buffer => false`; never sends an
@@ -80,17 +98,26 @@ get one entry each. Files that only exist in the fork are listed once per area.
       commit.
   This new path avoids findings F2–F4. Upstream's own `DownloadManager` is unchanged.
 - `tests/Integration/` and the compose profile `test` in `docker/dev/compose.yaml`: a fake GOG source
-  (`tests/Integration/FakeGog/`), an S3-compatible server (Versity S3 Gateway) and a Nextcloud with a quota-limited
-  test user (`docker/dev/nextcloud-hooks/`). Run with `make test-integration`, also as the `integration` job of
+  (`tests/Integration/FakeGog/`), an S3-compatible server (Versity S3 Gateway) and two Nextclouds, one on local
+  storage and one on object storage (a bucket on the S3 test server) with Valkey as its distributed cache, which
+  switches on Nextcloud's other code path for chunked uploads. `docker/dev/nextcloud-hooks/` adds a quota-limited test
+  user and turns off brute force protection in these throwaway containers. Run with `make test-integration`, also as the `integration` job of
   `.github/workflows/fork-tests.yml`. `phpunit.xml.dist` keeps them out of the default run (`defaultTestSuite`).
 - `tests/Integration/S3/`: the storage contract against the S3 test server in both checksum modes, S3-specific
   cases (prefix, access errors, injected server errors and dropped connections, a lost Complete response, a changed
   checksum setting, memory and temporary files), and whole transfers from the fake GOG source through the engine
   (mid-transfer failures, pause and resume through `ListParts`, deduplication by abort, resume after exhausted
   retries). `FaultInjectingHttpHandler` breaks chosen requests on their way to the real server.
+- `tests/Integration/Nextcloud/`: the storage contract against both Nextclouds, Nextcloud-specific cases (names that
+  need encoding, wrong credentials, a full quota, an expired upload folder, a cache that lost the upload, cancelling,
+  a chunk the server lacks, a `MOVE` whose answer got lost, proxy failures, a destination folder deleted mid-upload,
+  an existing file that must stay intact, memory and temporary files), whole transfers through the engine, and
+  `NextcloudChunkingFactsTest`, which pins the server behaviour the adapter relies on. `FaultInjectingHttpClient`
+  breaks chosen requests; tests use app passwords, as real targets do.
 - `tests/Fork/Transfer/`, `tests/Support/RecordingHttpClient.php`: unit tests for sources, planner and engine.
 - `tests/Fork/Storage/`: unit tests, and `ArchiveStorageAdapterContractTestCase`, which every adapter's tests
-  extend. `tests/Fork/Storage/S3/` tests the S3 adapter's requests and error handling against the SDK's mock handler.
+  extend. `tests/Fork/Storage/S3/` tests the S3 adapter's requests and error handling against the SDK's mock handler,
+  `tests/Fork/Storage/Nextcloud/` the Nextcloud adapter's against Symfony's `MockHttpClient`.
 - `tests/Support/TempFiles.php`: bytes the process holds in temporary files, read from `/proc/self/fd`.
 - `tests/` (characterization tests of upstream code, fake GOG API, fork tests), `phpunit.xml.dist`,
   `phpstan.dist.neon`, `phpstan-baseline.neon` (upstream's 130 existing findings at level 8),

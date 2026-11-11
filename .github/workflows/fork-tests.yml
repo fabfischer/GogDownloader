@@ -39,7 +39,8 @@ jobs:
 
   integration:
     # The same disposable test services as `make test-integration` locally: fake GOG source, S3-compatible server
-    # (Versity S3 Gateway) and Nextcloud, all synthetic, with fixed test-only credentials from docker/dev/compose.yaml.
+    # (Versity S3 Gateway) and two Nextclouds (local storage; object storage with Valkey), all synthetic, with fixed
+    # test-only credentials from docker/dev/compose.yaml.
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

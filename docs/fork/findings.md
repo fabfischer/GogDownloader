@@ -64,6 +64,59 @@ Versity S3 Gateway v1.10.0 of the `test` profile (both containers on one Docker 
 - **A PSR-7 stream closes its resource when it is freed.** The SDK wraps the part's stream in one; the adapter detaches
   it after each request, otherwise the caller's buffer is closed and the same part can't be sent again.
 
+### Nextcloud chunked uploads (test Nextclouds)
+
+Measured on 2026-11-11 with `App\Storage\Nextcloud\NextcloudStorageAdapter` and symfony/http-client 7.4.23 against two
+Nextcloud 35.0.2 containers of the `test` profile, with app passwords: `nextcloud` keeps files on local storage;
+`nextcloud-objectstore` uses a bucket on the Versity S3 Gateway as primary storage and Valkey 8.1.11 as distributed
+cache. All containers on one Docker network.
+
+| Server | Chunk | Extra peak memory while sending | Temporary files | Time per chunk | `complete()` of two chunks |
+|---|---|---|---|---|---|
+| local storage | 16 MiB | 0.1 MiB | 0 | 0.07–0.09 s | 0.19 s (32 MiB) |
+| local storage | 64 MiB | 0.1 MiB | 0 | 0.18–0.22 s | 0.52 s (128 MiB) |
+| object storage | 16 MiB | 0.1 MiB | 0 | 1.29–1.32 s | 0.13 s (32 MiB) |
+| object storage | 64 MiB | 0.1 MiB | 0 | 2.02–2.10 s | 0.18 s (128 MiB) |
+
+- "Extra" is on top of the chunk's own `php://memory` buffer: Symfony's curl client reads the request body straight
+  from the stream, sends no `Expect: 100-continue` and never retries on its own
+  ([`CurlHttpClient.php`](https://github.com/symfony/http-client/blob/v7.4.23/CurlHttpClient.php)). Checked on every run
+  by `tests/Integration/Nextcloud/NextcloudStorageAdapterTest.php`.
+- *Assessment:* the extra second per chunk with object storage is Nextcloud's own S3 client waiting for
+  `100 Continue` from the test S3 server, the same one-second wait as in the S3 measurements above: Nextcloud's S3
+  connection sets no `expect` option, so Guzzle's default applies. It doesn't depend on the adapter.
+- **Reading back:** `openRead()` held 2.1–2.7 MiB extra for 12 and 48 MiB files on both servers, once 4.9 MiB. The
+  client takes in whatever the socket holds when it reads, so the peak follows the kernel's receive buffer (at most
+  6 MiB on the test container), not the file size.
+- **Credentials:** with the account password every request took about 0.62 s (Nextcloud checks the password hash each
+  time), with an app password 0.025 s.
+
+Server behaviour the adapter relies on, each pinned in `tests/Integration/Nextcloud/NextcloudChunkingFactsTest.php`:
+
+- **Two code paths.** Nextcloud writes chunks straight into the storage only when the primary storage is object storage
+  with multipart support and a distributed cache is configured; otherwise it keeps chunks as files and assembles them
+  on the final `MOVE`
+  ([`ChunkingV2Plugin.php`](https://github.com/nextcloud/server/blob/v35.0.2/apps/dav/lib/Upload/ChunkingV2Plugin.php)).
+- **With object storage, `MOVE` doesn't check the total size.** With a chunk missing it answers 201 and puts the file
+  together from the chunks it has. With local storage it answers 400 ("Chunks on server do not sum up to …"). The
+  adapter checks the upload folder itself before it moves.
+- **With object storage, an upload aimed at an existing file changes that file's recorded size,** even when the final
+  `MOVE` is refused and the upload is cancelled: a 5 MiB file was listed with 10 MiB afterwards, and downloading it
+  returned an error instead of its content. With local storage the file stays intact. The adapter never opens an upload
+  for a path that is taken. *Assessment:* a Nextcloud bug worth reporting.
+- **With object storage, upload state lives in the distributed cache.** After the cache is emptied, the chunks are no
+  longer listed and the next chunk is refused with 412 "Missing metadata for chunked upload"; the upload has to start
+  again.
+- **A chunk is refused with 404 while the destination's folder is missing,** the same status as for a gone upload
+  folder (the quota check looks up that folder). `MOVE` answers 409 then.
+- **`Overwrite: F`** makes `MOVE` fail with 412 when the destination exists, on both paths; the file and the upload
+  folder stay. After a successful `MOVE` the upload folder is gone, and a repeated `MOVE` also gets 412.
+- **The first `PUT` of a chunk returns no ETag** (local storage), so the adapter identifies chunks by their names.
+- **Expiry:** a daily job deletes an upload folder once the folder and all chunks in it are older than
+  `cache_chunk_gc_ttl` (default 86,400 s)
+  ([`UploadCleanup.php`](https://github.com/nextcloud/server/blob/v35.0.2/apps/dav/lib/BackgroundJob/UploadCleanup.php)).
+  An account's upload folders can't be listed (405).
+
 ### GOG metadata and CDN (one read-only probe)
 
 - **Download link:** `files[].downlink` returns JSON with `downlink` (a signed URL on `gog-cdn-fastly.gog.com`) and
