@@ -1,0 +1,24 @@
+# Development tooling for the fork: one PHP container for Composer, tests, static analysis and the CLI.
+# Use it through the Makefile in the repository root (make help). Paths are relative to this file.
+name: gogdownloader-dev
+
+services:
+  php:
+    image: gogdownloader-dev:local
+    build:
+      context: .
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    working_dir: /app
+    entrypoint: ["docker-php-entrypoint"]
+    command: ["bash"]
+    volumes:
+      - ../..:/app
+      - composer-cache:/composer
+      - cli-config:/var/lib/gog-cli/config
+      - cli-downloads:/var/lib/gog-cli/downloads
+
+volumes:
+  composer-cache: {}
+  # State of the CLI (SQLite database with its GOG login) and its download target.
+  cli-config: {}
+  cli-downloads: {}

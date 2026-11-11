@@ -6,3 +6,7 @@
 /*.db
 /bin/appversion
 /GogDownloaderSetup.exe
+
+# Fork additions (see CHANGES-FORK.md)
+/var/
+/.phpunit.cache/
