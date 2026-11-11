@@ -4,7 +4,7 @@
 use App\AppKernel;
 use Symfony\Component\Console\Application;
 
-require_once __DIR__ . "/../vendor/autoload.php";
+require_once $GLOBALS['_composer_autoload_path'] ?? __DIR__ . "/../vendor/autoload.php";
 
 $kernel = new AppKernel("cli", $_ENV['GOG_DOWNLOADER_DEBUG'] ?? false);
 $kernel->boot();

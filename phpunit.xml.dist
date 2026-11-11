@@ -18,6 +18,10 @@
         <testsuite name="upstream">
             <directory>tests/Upstream</directory>
         </testsuite>
+        <!-- Behaviour the fork adds or changes. -->
+        <testsuite name="fork">
+            <directory>tests/Fork</directory>
+        </testsuite>
     </testsuites>
 
     <source>
