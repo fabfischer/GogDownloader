@@ -38,12 +38,31 @@ get one entry each. Files that only exist in the fork are listed once per area.
 - `src/Storage/` (namespace `App\Storage`): the storage contract for archive targets.
   - `ArchiveStorageAdapter` (begin, listCompletedParts, writePart, complete, abort, stat, openRead, delete);
   - value objects `StorageCapabilities`, `UploadRequest`, `UploadSession` (serializable for checkpoints),
-    `PartBody` (seekable memory stream), `UploadedPart`, `StoredObject`, `RemoteObjectInfo`;
+    `PartBody` (seekable memory stream), `UploadedPart` (with an optional part checksum), `StoredObject`,
+    `RemoteObjectInfo`;
   - `ObjectKey` (validated relative key) and `ObjectKeyBuilder` (revision-addressed layout; NFC, traversal-safe,
     length-limited names);
-  - exceptions that tell the caller how to react;
+  - exceptions that tell the caller how to react, including `UnexpectedStorageResponse` for answers an adapter
+    cannot classify;
   - `InMemory\InMemoryStorageAdapter`, a complete fake with failure injection for tests.
-  No upstream code uses it yet; the S3 and Nextcloud adapters follow.
+  No upstream code uses it; the Nextcloud adapter follows.
+- `src/Storage/S3/`: `S3StorageAdapter`, the storage contract on S3 multipart uploads, for AWS and S3-compatible
+  services, with `S3Settings` (endpoint, region, bucket, prefix, path-style, TLS and CA bundle, optional session token
+  and storage class, part limits, timeouts) and `S3ChecksumMode`.
+  - Uses the AWS SDK directly; upstream's `S3FileReference` (finding F1) is not used.
+  - Sessions carry the UploadId, the target (endpoint, bucket, prefix) and the checksum mode, never credentials.
+    A session is refused by an adapter for another target.
+  - CRC32 part checksums are declared, sent and repeated at Complete, or not used at all, per upload; defaults: on for
+    AWS, off for other endpoints.
+  - Never replaces an object: `HeadObject` before opening an upload, and `If-None-Match: *` on Complete where
+    enabled (default for AWS) or another `HeadObject` before Complete. A repeated Complete whose first response got
+    lost returns the stored object.
+  - SDK retries off (the transfer engine retries parts), `Expect: 100-continue` off, a `ListParts` probe after a part
+    upload that ended without an answer, `openRead()` streams `GetObject` in bounded chunks, no shared AWS config
+    files.
+  - Exceptions name operation, S3 error code, HTTP status and request ID; they don't chain the SDK exception, which
+    holds the signed request.
+  Measurements: [findings](docs/fork/findings.md#s3-part-uploads-s3-compatible-test-server).
 - `src/Transfer/` (namespace `App\Transfer`): moves one file from a source to a storage target in bounded parts.
   - `Source\HttpRangeSource` reads bounded ranges from a signed URL. It checks status 206, the exact
     `Content-Range`, length, total size and validators on every response; uses `buffer => false`; never sends an
@@ -64,9 +83,15 @@ get one entry each. Files that only exist in the fork are listed once per area.
   (`tests/Integration/FakeGog/`), an S3-compatible server (Versity S3 Gateway) and a Nextcloud with a quota-limited
   test user (`docker/dev/nextcloud-hooks/`). Run with `make test-integration`, also as the `integration` job of
   `.github/workflows/fork-tests.yml`. `phpunit.xml.dist` keeps them out of the default run (`defaultTestSuite`).
+- `tests/Integration/S3/`: the storage contract against the S3 test server in both checksum modes, S3-specific
+  cases (prefix, access errors, injected server errors and dropped connections, a lost Complete response, a changed
+  checksum setting, memory and temporary files), and whole transfers from the fake GOG source through the engine
+  (mid-transfer failures, pause and resume through `ListParts`, deduplication by abort, resume after exhausted
+  retries). `FaultInjectingHttpHandler` breaks chosen requests on their way to the real server.
 - `tests/Fork/Transfer/`, `tests/Support/RecordingHttpClient.php`: unit tests for sources, planner and engine.
 - `tests/Fork/Storage/`: unit tests, and `ArchiveStorageAdapterContractTestCase`, which every adapter's tests
-  extend.
+  extend. `tests/Fork/Storage/S3/` tests the S3 adapter's requests and error handling against the SDK's mock handler.
+- `tests/Support/TempFiles.php`: bytes the process holds in temporary files, read from `/proc/self/fd`.
 - `tests/` (characterization tests of upstream code, fake GOG API, fork tests), `phpunit.xml.dist`,
   `phpstan.dist.neon`, `phpstan-baseline.neon` (upstream's 130 existing findings at level 8),
   `.php-cs-fixer.fork.php` (upstream's style rules, applied to `tests/` only).

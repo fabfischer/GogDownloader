@@ -20,8 +20,8 @@ use PHPUnit\Framework\Attributes\CoversNothing;
 use Symfony\Component\HttpClient\HttpClient;
 
 /**
- * The transfer engine reading from the fake GOG source over HTTP. The storage side is the in-memory adapter until the
- * S3 and Nextcloud adapters exist; they reuse this setup.
+ * The transfer engine reading from the fake GOG source over HTTP, into the in-memory adapter. Transfers into the real
+ * backends: S3/TransferToS3Test.
  */
 #[CoversNothing]
 final class TransferThroughHarnessTest extends IntegrationTestCase
@@ -77,7 +77,7 @@ final class TransferThroughHarnessTest extends IntegrationTestCase
 
     private function hosts(): HostAllowlist
     {
-        return new HostAllowlist(['fake-gog'], allowPlainHttp: true);
+        return self::fakeGogHosts();
     }
 
     /**
@@ -85,6 +85,6 @@ final class TransferThroughHarnessTest extends IntegrationTestCase
      */
     private function url(string $seed, int $size, array $query = []): string
     {
-        return sprintf('%s/files/%s/%d%s', self::env('ITEST_FAKE_GOG_URL'), $seed, $size, $query === [] ? '' : '?' . http_build_query($query));
+        return self::fakeGogFileUrl($seed, $size, $query);
     }
 }

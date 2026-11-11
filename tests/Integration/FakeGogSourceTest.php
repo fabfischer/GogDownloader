@@ -11,7 +11,6 @@ use App\Transfer\Exception\SourceRangeMismatch;
 use App\Transfer\Exception\SourceSizeUnknown;
 use App\Transfer\Exception\SourceUnavailable;
 use App\Transfer\Exception\TransientSourceFailure;
-use App\Transfer\HostAllowlist;
 use App\Transfer\Source\HttpRangeSource;
 use App\Transfer\SourceFingerprint;
 use Closure;
@@ -145,7 +144,7 @@ final class FakeGogSourceTest extends IntegrationTestCase
      */
     private function source(Closure $resolve): HttpRangeSource
     {
-        return new HttpRangeSource(HttpClient::create(), $resolve, new HostAllowlist(['fake-gog'], allowPlainHttp: true), HttpRangeSource::gogExpiry());
+        return new HttpRangeSource(HttpClient::create(), $resolve, self::fakeGogHosts(), HttpRangeSource::gogExpiry());
     }
 
     /**
@@ -153,7 +152,7 @@ final class FakeGogSourceTest extends IntegrationTestCase
      */
     private function fileUrl(string $seed, int $size, array $query = []): string
     {
-        return sprintf('%s/files/%s/%d%s', self::env('ITEST_FAKE_GOG_URL'), $seed, $size, $query === [] ? '' : '?' . http_build_query($query));
+        return self::fakeGogFileUrl($seed, $size, $query);
     }
 
     private function fingerprint(string $seed, int $size): SourceFingerprint

@@ -9,8 +9,8 @@ library by a separate, self-hosted archiving application, so it needs things the
   them part by part with checkpoints (`src/Transfer/`, added),
 - a storage contract for archive targets with an in-memory implementation and reusable contract tests
   (`src/Storage/`, added),
-- resumable uploads to S3-compatible storage and to Nextcloud over WebDAV, with upload state that a caller can save
-  and resume in another process (planned).
+- resumable uploads with upload state that a caller can save and resume in another process: to S3 and
+  S3-compatible storage (`src/Storage/S3/`, added) and to Nextcloud over WebDAV (planned).
 
 The original command-line tool keeps working. Upstream's README describes how to use it.
 

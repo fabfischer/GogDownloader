@@ -9,7 +9,7 @@ probe of a real GOG account (metadata, download links, checksum XML, a few 64 Ki
 
 | # | Finding | Evidence | Impact |
 |---|---|---|---|
-| F1 | **S3 uploads get a corrupted tail.** `S3FileReference::finalize()` passes the leftover buffer to `writeChunk()`, which prepends the buffer again, so the last part contains the remaining bytes twice (21 bytes written, 22 uploaded). Only files whose size is an exact multiple of the chunk size come out intact. The MD5 tag is computed from the stream, so later runs read the tag and treat the corrupt object as valid. | `S3FileReferenceTest::testFullChunksBecomeNumberedPartsAndFinalizeCompletesAndTags` | Data corruption on S3 targets. To be fixed in the fork; worth reporting upstream. |
+| F1 | **S3 uploads get a corrupted tail.** `S3FileReference::finalize()` passes the leftover buffer to `writeChunk()`, which prepends the buffer again, so the last part contains the remaining bytes twice (21 bytes written, 22 uploaded). Only files whose size is an exact multiple of the chunk size come out intact. The MD5 tag is computed from the stream, so later runs read the tag and treat the corrupt object as valid. | `S3FileReferenceTest::testFullChunksBecomeNumberedPartsAndFinalizeCompletesAndTags` | Data corruption on S3 targets. The fork's S3 adapter (`src/Storage/S3/`) is a separate code path and not affected; upstream's CLI still is. Worth reporting upstream. |
 | F2 | **Downloads are buffered by default.** `DownloadManager::download()` leaves Symfony HttpClient's `buffer` option at `true`. The client then copies the body into `php://temp` (`symfony/http-client` `TransportResponseTrait`: `true === $response->shouldBuffer` → `fopen('php://temp', 'w+')`), which PHP moves to a temporary file above 2 MiB. | Source reading, then measured: a streamed 64 MiB response left **64 MiB in temporary files** with the default and 0 with `buffer => false` | Large downloads use as much temporary disk as the file size. Streaming needs `buffer => false`; the fork's `App\Transfer\Source\HttpRangeSource` sets it. |
 | F3 | The GOG bearer token is also sent to the CDN host that serves the signed file URL. | `DownloadManagerTest::testDownloadUsesAnOpenEndedRangeAndSendsTheBearerTokenToTheCdn`; measured: the CDN serves byte ranges of the signed URL with 206 **without** any `Authorization` header | The token reaches a host that doesn't need it. |
 | F4 | Resume uses an open-ended `Range: bytes=N-`, not bounded parts. | same test | No per-part retries or checkpoints. |
@@ -35,6 +35,34 @@ probe of a real GOG account (metadata, download links, checksum XML, a few 64 Ki
   - `request_checksum_calculation: when_required` drops the CRC32 header.
 - **Hash state:** SHA-256, MD5 and CRC32 contexts survive `serialize()` and give the right hash when resumed in a new
   process. HMAC contexts can't be serialized.
+
+### S3 part uploads (S3-compatible test server)
+
+Measured on 2026-11-11 with `App\Storage\S3\S3StorageAdapter`, aws/aws-sdk-php 3.387.0 and Guzzle 7.16.1 against the
+Versity S3 Gateway v1.10.0 of the `test` profile (both containers on one Docker network).
+
+| Part | Checksums | Extra peak memory while sending | Temporary files | Time per part |
+|---|---|---|---|---|
+| 16 MiB | off | 1.3 MiB | 0 | 0.19 s |
+| 64 MiB | off | 1.1 MiB | 0 | 0.76 s |
+| 16 MiB | CRC32 | 1.2 MiB | 0 | 0.23 s |
+| 64 MiB | CRC32 | 1.2 MiB | 0 | 0.91 s |
+
+- "Extra" is on top of the part's own `php://memory` buffer. The SDK reads that buffer for the SHA-256 signature and
+  the CRC32 without copying it. Both values are also checked by `tests/Integration/S3/S3StorageAdapterTest.php`.
+- **`Expect: 100-continue` cost one second per part.** Guzzle adds the header to bodies over 1 MB
+  ([Guzzle docs](https://docs.guzzlephp.org/en/stable/request-options.html#expect)), and curl waits up to 1,000 ms
+  for the server's answer before sending the body anyway
+  ([libcurl docs](https://curl.se/libcurl/c/CURLOPT_EXPECT_100_TIMEOUT_MS.html)). The test server never answered it, so
+  each part took about one second longer (16 MiB: 1.22 s with the header, 0.19 s without). The adapter turns the header
+  off.
+- **Early refusals can look like a broken connection.** Without the header the body goes out at once. When the server
+  refuses a part before reading it (for example an upload that was already aborted), it answers and closes the
+  connection while the body is still being sent; curl then reports "Send failure: Connection reset by peer" (error 55)
+  instead of the answer. The adapter asks the server with a small `ListParts` request whenever a part upload ends
+  without an answer, so an unknown upload is still reported as one.
+- **A PSR-7 stream closes its resource when it is freed.** The SDK wraps the part's stream in one; the adapter detaches
+  it after each request, otherwise the caller's buffer is closed and the same part can't be sent again.
 
 ### GOG metadata and CDN (one read-only probe)
 
