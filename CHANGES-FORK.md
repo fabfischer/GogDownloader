@@ -17,6 +17,9 @@ get one entry each. Files that only exist in the fork are listed once per area.
 - `bin/app.php`: loads the autoloader from `$GLOBALS['_composer_autoload_path']` when Composer's bin proxy sets it,
   so the CLI also runs as `vendor/bin/app.php` in another project. Falls back to `../vendor/autoload.php`.
   Test: `tests/Fork/BinaryAsDependencyTest.php`.
+- `composer.json`: `symfony/polyfill-intl-normalizer` is now a direct requirement. `App\Storage\ObjectKeyBuilder`
+  normalizes names to Unicode NFC with `Normalizer`, which the polyfill provides when the `intl` extension is
+  missing. It was already installed through `symfony/string`.
 - `composer.json`: the Symfony requirements allow 7.x next to 6.x (`^6.0 || ^7.0`), so projects on Symfony 7.4 LTS
   can use the package. Symfony 6.4's bug-fix support ends 11/2026, 7.4 LTS gets bug fixes until 11/2028
   ([symfony.com/releases](https://symfony.com/releases)).
@@ -27,10 +30,22 @@ get one entry each. Files that only exist in the fork are listed once per area.
 - `composer.lock`: security updates within the existing constraints (no major versions): Guzzle 7.13.1 → 7.16.1,
   Symfony 6.4.x components → 6.4.49/6.4.50, transitive Symfony 7.4.x → 7.4.22/7.4.23, and their dependencies.
   Fixes the advisories `composer audit` reported for v1.15.1 ([findings](docs/fork/findings.md), F10).
+- `.php-cs-fixer.fork.php` (fork-only) now also checks `src/Storage/`.
 - `.gitignore`: a "Fork additions" block (`/var/`, `/.phpunit.cache/`). Upstream lines unchanged.
 
 ### Added (fork-only files)
 
+- `src/Storage/` (namespace `App\Storage`): the storage contract for archive targets.
+  - `ArchiveStorageAdapter` (begin, listCompletedParts, writePart, complete, abort, stat, openRead, delete);
+  - value objects `StorageCapabilities`, `UploadRequest`, `UploadSession` (serializable for checkpoints),
+    `PartBody` (seekable memory stream), `UploadedPart`, `StoredObject`, `RemoteObjectInfo`;
+  - `ObjectKey` (validated relative key) and `ObjectKeyBuilder` (revision-addressed layout; NFC, traversal-safe,
+    length-limited names);
+  - exceptions that tell the caller how to react;
+  - `InMemory\InMemoryStorageAdapter`, a complete fake with failure injection for tests.
+  No upstream code uses it yet; the S3 and Nextcloud adapters follow.
+- `tests/Fork/Storage/`: unit tests, and `ArchiveStorageAdapterContractTestCase`, which every adapter's tests
+  extend.
 - `tests/` (characterization tests of upstream code, fake GOG API, fork tests), `phpunit.xml.dist`,
   `phpstan.dist.neon`, `phpstan-baseline.neon` (upstream's 130 existing findings at level 8),
   `.php-cs-fixer.fork.php` (upstream's style rules, applied to `tests/` only).

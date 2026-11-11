@@ -6,6 +6,8 @@ library by a separate, self-hosted archiving application, so it needs things the
 - automated tests for the existing behaviour (added),
 - a CLI that also runs when the package is installed as a Composer dependency (added),
 - downloads that stream bounded byte ranges without spooling whole files to disk (planned),
+- a storage contract for archive targets with an in-memory implementation and reusable contract tests
+  (`src/Storage/`, added),
 - resumable uploads to S3-compatible storage and to Nextcloud over WebDAV, with upload state that a caller can save
   and resume in another process (planned).
 
