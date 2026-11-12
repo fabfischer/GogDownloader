@@ -7,6 +7,7 @@ use App\DTO\GameDetail;
 use App\DTO\GameInfo;
 use App\DTO\MovieInfo;
 use App\DTO\OwnedItemInfo;
+use App\DTO\RawProductPayload;
 use App\DTO\SearchFilter;
 use App\DTO\Url;
 use App\Enum\Language;
@@ -120,6 +121,86 @@ final class OwnedItemsManager
                 }
             }
         } while ($query['page'] <= $data['totalPages']);
+    }
+
+    /**
+     * The owned products as GOG lists them, one array per product with every field GOG sends (getOwnedItems() keeps
+     * only a few). Hidden products are included unless $includeHidden is false.
+     *
+     * @throws AuthorizationException if GOG answers with something other than JSON (logged out)
+     *
+     * @return iterable<array<mixed>>
+     */
+    public function getRawOwnedProducts(
+        MediaType $mediaType = MediaType::Game,
+        bool $includeHidden = true,
+        int $httpTimeout = 3,
+    ): iterable {
+        $query = [
+            'mediaType' => $mediaType->value,
+            'page' => 1,
+            'sortBy' => 'title',
+        ];
+        if (!$includeHidden) {
+            $query['hiddenFlag'] = 0;
+        }
+
+        do {
+            $response = $this->httpClient->request(
+                Request::METHOD_GET,
+                new Url(
+                    host: self::GOG_ACCOUNT_URL,
+                    path: 'getFilteredProducts',
+                    query: $query,
+                ),
+                [
+                    'auth_bearer' => (string) $this->authorization->getAuthorization(),
+                    'timeout' => $httpTimeout,
+                ]
+            );
+
+            try {
+                $data = json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR);
+            } catch (JsonException) {
+                throw new AuthorizationException('Failed to get list of games, you were probably logged out.');
+            }
+            ++$query['page'];
+
+            foreach ($data['products'] as $product) {
+                yield $product;
+            }
+        } while ($query['page'] <= $data['totalPages']);
+    }
+
+    /**
+     * Everything GOG says about one owned product, unchanged (see RawProductPayload). Unlike getItemDetail(), DLC
+     * and extras the account doesn't own stay in the product API's lists, and no checksum is fetched.
+     *
+     * @throws JsonException if GOG answers with something other than JSON
+     */
+    public function getRawProductPayload(int $productId, int $httpTimeout = 3): RawProductPayload
+    {
+        $options = [
+            'auth_bearer' => (string) $this->authorization->getAuthorization(),
+            'timeout' => $httpTimeout,
+        ];
+        // Both requests are sent before either answer is read, so they run at the same time.
+        $owned = $this->httpClient->request(
+            Request::METHOD_GET,
+            new Url(host: self::GOG_ACCOUNT_URL, path: "gameDetails/{$productId}.json"),
+            $options,
+        );
+        $product = $this->httpClient->request(
+            Request::METHOD_GET,
+            new Url(host: self::GOG_API_URL, path: "products/{$productId}", query: ['expand' => 'downloads,expanded_dlcs']),
+            $options,
+        );
+
+        return new RawProductPayload(
+            $productId,
+            (array) json_decode($owned->getContent(), true, flags: JSON_THROW_ON_ERROR),
+            (array) json_decode($product->getContent(), true, flags: JSON_THROW_ON_ERROR),
+        );
     }
 
     public function getGameDetailByTitle(string $title): ?GameDetail

@@ -10,6 +10,20 @@ get one entry each. Files that only exist in the fork are listed once per area.
 
 ### Changed (upstream files)
 
+- `src/Service/OwnedItemsManager.php`: two new public methods; the existing ones are unchanged.
+  - `getRawOwnedProducts()` yields the owned products as GOG lists them, with every field (hidden ones too, unless
+    left out).
+  - `getRawProductPayload()` returns a product's account view (`gameDetails`) and its product API payload (downloads
+    and expanded DLC) unchanged, as the new `App\DTO\RawProductPayload`. Nothing is filtered, no checksum is fetched.
+
+  Callers can now tell builds, parts, language packs, DLC and extra types apart (finding F5). Test:
+  `tests/Fork/Gog/RawGogDataTest.php`.
+- `src/Service/DownloadManager.php`: two new public methods; the existing ones are unchanged.
+  - `resolveDownlink()` turns a file's `downlink` from the product API into the signed CDN URL and its checksum URL.
+    It sends the account's token only to `api.gog.com` or `embed.gog.com` over https.
+  - `getChecksumXml()` returns the checksum file, or `null` when there is none (404 or empty).
+
+  Same test.
 - `src/Command/LoginCodeCommand.php`: the private helper `getCode()` is now `extractCode()`. Symfony Console 7.4
   added a public `Command::getCode()`, and a private method of the same name is a fatal error in PHP, so the whole CLI
   died on 7.4 (even `list`). Behaviour is unchanged; works on Symfony 6.4 and 7.4. The PHPStan baseline entry for
@@ -49,6 +63,7 @@ get one entry each. Files that only exist in the fork are listed once per area.
   - `InMemory\InMemoryStorageAdapter`, a complete fake with failure injection for tests (failed part uploads, failed
     or lost answers when completing, expired sessions).
   No upstream code uses it.
+- `src/DTO/RawProductPayload.php`: the two unchanged payloads of one product (see `OwnedItemsManager` above).
 - `src/Storage/S3/`: `S3StorageAdapter`, the storage contract on S3 multipart uploads, for AWS and S3-compatible
   services, with `S3Settings` (endpoint, region, bucket, prefix, path-style, TLS and CA bundle, optional session token
   and storage class, part limits, timeouts) and `S3ChecksumMode`.
