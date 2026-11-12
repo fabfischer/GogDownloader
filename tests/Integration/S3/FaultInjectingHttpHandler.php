@@ -17,8 +17,9 @@ use Psr\Http\Message\RequestInterface;
 /**
  * HTTP handler for the S3 SDK (client option "http_handler") that passes requests to the real test server, except the
  * ones a test chose to break: an error response, a connection that drops before the server sees the request, or a
- * response that gets lost after the server did the work. It also records each operation and the bytes held in
- * temporary files at the moment a request leaves.
+ * response that gets lost after the server did the work. It can also stall a request halfway through its body
+ * (stallOn), so a test can kill the process at that moment. It records each operation and the bytes held in temporary
+ * files at the moment a request leaves.
  */
 final class FaultInjectingHttpHandler
 {
@@ -70,6 +71,20 @@ final class FaultInjectingHttpHandler
     public function count(string $operation): int
     {
         return $this->counts[$operation] ?? 0;
+    }
+
+    /**
+     * Sends the n-th request of an operation, but calls $onStall once curl has read $afterBytes of its body. The
+     * callback is meant to block (and the process to be killed meanwhile), so the request is cut in the middle.
+     *
+     * @param Closure(int): void $onStall gets the bytes handed to curl so far
+     */
+    public function stallOn(string $operation, int $nth, int $afterBytes, Closure $onStall): void
+    {
+        $this->faults[$operation][$nth] = fn (RequestInterface $request, array $options): PromiseInterface => ($this->inner)(
+            $request->withBody(new StallingStream($request->getBody(), $afterBytes, $onStall)),
+            $options,
+        );
     }
 
     /**

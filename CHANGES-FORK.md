@@ -36,7 +36,9 @@ get one entry each. Files that only exist in the fork are listed once per area.
 ### Added (fork-only files)
 
 - `src/Storage/` (namespace `App\Storage`): the storage contract for archive targets.
-  - `ArchiveStorageAdapter` (begin, listCompletedParts, writePart, complete, abort, stat, openRead, delete);
+  - `ArchiveStorageAdapter` (begin, listCompletedParts, writePart, complete, abort, stat, openRead, delete).
+    `complete()` is safe to repeat: when the session is gone and the key holds an object of the full size, an earlier
+    call succeeded and that object is returned;
   - value objects `StorageCapabilities`, `UploadRequest`, `UploadSession` (serializable for checkpoints),
     `PartBody` (seekable memory stream), `UploadedPart` (with an optional part checksum), `StoredObject`,
     `RemoteObjectInfo`;
@@ -44,7 +46,8 @@ get one entry each. Files that only exist in the fork are listed once per area.
     length-limited names);
   - exceptions that tell the caller how to react, including `UnexpectedStorageResponse` for answers an adapter
     cannot classify;
-  - `InMemory\InMemoryStorageAdapter`, a complete fake with failure injection for tests.
+  - `InMemory\InMemoryStorageAdapter`, a complete fake with failure injection for tests (failed part uploads, failed
+    or lost answers when completing, expired sessions).
   No upstream code uses it.
 - `src/Storage/S3/`: `S3StorageAdapter`, the storage contract on S3 multipart uploads, for AWS and S3-compatible
   services, with `S3Settings` (endpoint, region, bucket, prefix, path-style, TLS and CA bundle, optional session token
@@ -94,8 +97,15 @@ get one entry each. Files that only exist in the fork are listed once per area.
     - checkpoints only after the target acknowledged a part;
     - retries with backoff (re-reading the source, or re-sending the same buffer);
     - aborts when the source changed;
-    - handles pause and cancel, resume with reconciliation, a commit gate for deduplication, and a size check after
-      commit.
+    - handles pause and cancel, a commit gate for deduplication, and a size check after commit;
+    - retries completing the upload like a part; after an attempt with an unknown outcome, a key reported as taken
+      counts as temporary, because the target may still be finishing that attempt;
+    - resumes from a checkpoint after reconciling it with the target. An upload that an earlier run completed but did
+      not report is returned without sending anything, reading the source or asking the commit gate again
+      (`TransferResult::$recovered`).
+  - `Reconciler`, `Reconciliation`, `ReconcileOutcome`: compare a checkpoint with what the target holds (`ListParts`,
+    `PROPFIND`, a stat of the key) without changing anything. Outcomes: resumable from the next part (with the parts
+    the target holds beyond the checkpoint), already completed, session gone, or a checkpointed part missing.
   This new path avoids findings F2–F4. Upstream's own `DownloadManager` is unchanged.
 - `tests/Integration/` and the compose profile `test` in `docker/dev/compose.yaml`: a fake GOG source
   (`tests/Integration/FakeGog/`), an S3-compatible server (Versity S3 Gateway) and two Nextclouds, one on local
@@ -114,9 +124,15 @@ get one entry each. Files that only exist in the fork are listed once per area.
   an existing file that must stay intact, memory and temporary files), whole transfers through the engine, and
   `NextcloudChunkingFactsTest`, which pins the server behaviour the adapter relies on. `FaultInjectingHttpClient`
   breaks chosen requests; tests use app passwords, as real targets do.
-- `tests/Fork/Transfer/`, `tests/Support/RecordingHttpClient.php`: unit tests for sources, planner and engine.
+- `tests/Integration/Resume/`: a worker process (`crash-worker.php`) transfers a 10-part file and is killed with
+  SIGKILL while sending part 3, after the target stored part 3 but before its checkpoint, or after completing; a
+  second process resumes from the checkpoint file it left. Runs against S3 and both Nextclouds. The fault injectors
+  can stall a request halfway through its body for this (`stallOn()`).
+  Results: [findings](docs/fork/findings.md#worker-killed-in-the-middle-of-a-transfer-test-services).
+- `tests/Fork/Transfer/`, `tests/Support/RecordingHttpClient.php`: unit tests for sources, planner, engine and
+  reconciler.
 - `tests/Fork/Storage/`: unit tests, and `ArchiveStorageAdapterContractTestCase`, which every adapter's tests
-  extend. `tests/Fork/Storage/S3/` tests the S3 adapter's requests and error handling against the SDK's mock handler,
+  extend (including a repeated `complete()` and completing a gone session). `tests/Fork/Storage/S3/` tests the S3 adapter's requests and error handling against the SDK's mock handler,
   `tests/Fork/Storage/Nextcloud/` the Nextcloud adapter's against Symfony's `MockHttpClient`.
 - `tests/Support/TempFiles.php`: bytes the process holds in temporary files, read from `/proc/self/fd`.
 - `tests/` (characterization tests of upstream code, fake GOG API, fork tests), `phpunit.xml.dist`,

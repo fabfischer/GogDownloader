@@ -42,6 +42,14 @@ final readonly class TransferCheckpoint
         return count($this->parts) + 1;
     }
 
+    /**
+     * True when every part of the session is acknowledged and checkpointed, so only completing is left.
+     */
+    public function hasAllParts(): bool
+    {
+        return count($this->parts) === $this->session->partCount();
+    }
+
     public function sha256(): HashContext
     {
         return self::context($this->sha256State);

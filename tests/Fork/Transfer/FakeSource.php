@@ -17,6 +17,9 @@ final class FakeSource implements TransferSource
     /** @var list<array{int, int}> every readPart() call as [offset, length] */
     public array $reads = [];
 
+    /** How often open() was called. */
+    public int $opens = 0;
+
     /** @var array<int, list<Throwable>> failures per offset, thrown after the first chunk */
     private array $failures = [];
 
@@ -35,7 +38,9 @@ final class FakeSource implements TransferSource
 
     public function open(): SourceFingerprint
     {
-        return new SourceFingerprint(strlen($this->bytes), $this->etag, 'Thu, 13 Aug 2026 14:14:23 GMT');
+        ++$this->opens;
+
+        return $this->fingerprint();
     }
 
     public function isResumable(): bool
@@ -46,7 +51,7 @@ final class FakeSource implements TransferSource
     public function readPart(int $offset, int $length, SourceFingerprint $expected): iterable
     {
         $this->reads[] = [$offset, $length];
-        if (!$expected->matches($this->open())) {
+        if (!$expected->matches($this->fingerprint())) {
             throw new SourceChanged('fake source changed');
         }
         $part = substr($this->bytes, $offset, $length);
@@ -56,5 +61,10 @@ final class FakeSource implements TransferSource
                 throw array_shift($this->failures[$offset]);
             }
         }
+    }
+
+    private function fingerprint(): SourceFingerprint
+    {
+        return new SourceFingerprint(strlen($this->bytes), $this->etag, 'Thu, 13 Aug 2026 14:14:23 GMT');
     }
 }

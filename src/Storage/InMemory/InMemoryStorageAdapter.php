@@ -38,6 +38,9 @@ final class InMemoryStorageAdapter implements ArchiveStorageAdapter
     /** @var list<Throwable> */
     private array $writeFailures = [];
 
+    /** @var list<array{failure: Throwable, afterCompleting: bool}> */
+    private array $completeFailures = [];
+
     private int $sessionCounter = 0;
 
     private readonly StorageCapabilities $capabilities;
@@ -130,7 +133,16 @@ final class InMemoryStorageAdapter implements ArchiveStorageAdapter
 
     public function complete(UploadSession $session, array $parts): StoredObject
     {
-        $stored = $this->openSession($session)['parts'];
+        $failure = array_shift($this->completeFailures);
+        if ($failure !== null && !$failure['afterCompleting']) {
+            throw $failure['failure'];
+        }
+
+        $entry = $this->sessions[$session->sessionId] ?? null;
+        if ($entry === null || $entry['session']->backend !== $session->backend) {
+            return $this->finishedEarlier($session);
+        }
+        $stored = $entry['parts'];
         $count = $session->partCount();
 
         $numbers = array_map(static fn (UploadedPart $part): int => $part->number, $parts);
@@ -157,6 +169,10 @@ final class InMemoryStorageAdapter implements ArchiveStorageAdapter
         $now = $this->now();
         $this->objects[$session->key->value] = ['bytes' => $bytes, 'etag' => $etag, 'at' => $now];
         unset($this->sessions[$session->sessionId]);
+
+        if ($failure !== null) {
+            throw $failure['failure'];
+        }
 
         return new StoredObject($session->key, strlen($bytes), $etag, $now);
     }
@@ -205,6 +221,24 @@ final class InMemoryStorageAdapter implements ArchiveStorageAdapter
     }
 
     /**
+     * Makes the next complete() calls fail with these exceptions, one per call, before anything is stored.
+     */
+    public function failNextCompletes(Throwable ...$failures): void
+    {
+        foreach ($failures as $failure) {
+            $this->completeFailures[] = ['failure' => $failure, 'afterCompleting' => false];
+        }
+    }
+
+    /**
+     * Makes the next complete() call store the object and then throw, as when the answer is lost on the way back.
+     */
+    public function loseNextCompleteAnswer(Throwable $failure): void
+    {
+        $this->completeFailures[] = ['failure' => $failure, 'afterCompleting' => true];
+    }
+
+    /**
      * Drops a session as if the backend had expired it after inactivity.
      */
     public function expireSession(UploadSession $session): void
@@ -239,6 +273,19 @@ final class InMemoryStorageAdapter implements ArchiveStorageAdapter
         }
 
         return $entry;
+    }
+
+    /**
+     * complete() on a gone session: an earlier call succeeded if the key holds an object of the session's size.
+     */
+    private function finishedEarlier(UploadSession $session): StoredObject
+    {
+        $object = $this->objects[$session->key->value] ?? null;
+        if ($object === null || strlen($object['bytes']) !== $session->totalSize) {
+            throw new UploadSessionNotFound('The upload session does not exist (aborted, expired or unknown).');
+        }
+
+        return new StoredObject($session->key, strlen($object['bytes']), $object['etag'], $object['at']);
     }
 
     private function now(): DateTimeImmutable

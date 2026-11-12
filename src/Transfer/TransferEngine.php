@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Transfer;
 
+use App\Storage\Exception\ObjectAlreadyExists;
 use App\Storage\Exception\PartRejected;
 use App\Storage\Exception\TransientStorageFailure;
-use App\Storage\Exception\UploadSessionNotFound;
 use App\Storage\PartBody;
+use App\Storage\StoredObject;
 use App\Storage\UploadedPart;
 use App\Storage\UploadRequest;
 use App\Storage\UploadSession;
@@ -19,8 +20,10 @@ use App\Transfer\Exception\TransferException;
 use App\Transfer\Exception\TransientSourceFailure;
 use App\Transfer\Exception\VerificationFailed;
 use Closure;
+use DateTimeImmutable;
 use HashContext;
 use InvalidArgumentException;
+use LogicException;
 use Throwable;
 
 /**
@@ -32,11 +35,15 @@ use Throwable;
  *   part, so retries never hash bytes twice;
  * - a checkpoint is saved after the session is opened and after every acknowledged part, never before;
  * - temporary source failures re-read the part (resumable sources only), temporary storage failures re-send the same
- *   buffer, both with backoff, up to the retry budget;
+ *   buffer, both with backoff, up to the retry budget; completing the upload is retried the same way;
  * - a changed source, a non-resumable source failing midway, a cancel request or a "no" from the commit gate abort the
  *   upload session; storage errors and an exhausted retry budget leave it open for the caller (it has the checkpoint);
  * - pause and cancel requests are honoured between parts;
  * - after completing, the stored size is checked against the source size.
+ *
+ * Resuming from a checkpoint first reconciles it with the target (Reconciler): an open session continues after the
+ * last checkpointed part; an upload that an earlier run already completed is returned without reading the source; a
+ * gone session or a missing part ends in ResumeImpossible, and the caller starts again from byte zero with a fresh key.
  */
 final readonly class TransferEngine
 {
@@ -51,6 +58,7 @@ final readonly class TransferEngine
         private RetryPolicy $retry = new RetryPolicy(),
         private ?BandwidthLimiter $limiter = null,
         ?Closure $sleep = null,
+        private Reconciler $reconciler = new Reconciler(),
     ) {
         $this->sleep = $sleep ?? static function (float $seconds): void {
             usleep((int) round($seconds * 1_000_000));
@@ -62,21 +70,66 @@ final readonly class TransferEngine
      */
     public function transfer(TransferRequest $request): TransferResult
     {
-        $target = $request->target;
-        $fingerprint = $request->source->open();
-
         if ($request->resumeFrom !== null) {
-            [$session, $parts, $sha, $md5] = $this->prepareResume($request, $request->resumeFrom, $fingerprint);
-            $checkpoint = $request->resumeFrom;
-        } else {
-            $plan = $this->planner->plan($fingerprint->totalSize, $target->capabilities());
-            $session = $target->begin(new UploadRequest($request->key, $fingerprint->totalSize, $plan->partSize, $request->contentType));
-            $parts = [];
-            $sha = hash_init('sha256');
-            $md5 = hash_init('md5');
-            $checkpoint = $this->checkpoint($request, $session, $parts, $fingerprint, $sha, $md5);
+            return $this->resume($request, $request->resumeFrom);
         }
 
+        $target = $request->target;
+        $fingerprint = $request->source->open();
+        $plan = $this->planner->plan($fingerprint->totalSize, $target->capabilities());
+        $session = $target->begin(new UploadRequest($request->key, $fingerprint->totalSize, $plan->partSize, $request->contentType));
+        $sha = hash_init('sha256');
+        $md5 = hash_init('md5');
+        $checkpoint = $this->checkpoint($request, $session, [], $fingerprint, $sha, $md5);
+
+        return $this->run($request, $session, [], $fingerprint, $sha, $md5, $checkpoint, completingMayHaveStarted: false);
+    }
+
+    private function resume(TransferRequest $request, TransferCheckpoint $checkpoint): TransferResult
+    {
+        $session = $checkpoint->session;
+        if (!$session->key->equals($request->key)) {
+            throw new InvalidArgumentException('The checkpoint belongs to another object key.');
+        }
+
+        $state = $this->reconciler->reconcile($checkpoint, $request->target);
+        switch ($state->outcome) {
+            case ReconcileOutcome::AlreadyCompleted:
+                return $this->recover($request, $state);
+            case ReconcileOutcome::SessionGone:
+                throw new ResumeImpossible('The upload session no longer exists at the target.');
+            case ReconcileOutcome::PartMissing:
+                $this->abortQuietly($request, $session);
+
+                throw new ResumeImpossible(sprintf('The target no longer holds part %d as checkpointed.', $state->missingPart));
+            case ReconcileOutcome::Resumable:
+                break;
+        }
+
+        $fingerprint = $request->source->open();
+        if (!$checkpoint->fingerprint->matches($fingerprint)) {
+            $this->abortQuietly($request, $session);
+
+            throw new SourceChanged('The source changed since the checkpoint; start again from byte zero.');
+        }
+        if (!$request->source->isResumable() && $checkpoint->parts !== []) {
+            $this->abortQuietly($request, $session);
+
+            throw new ResumeImpossible('A sequential source cannot continue in the middle of a file.');
+        }
+        [$sha, $md5] = $this->hashState($request, $checkpoint, $fingerprint);
+
+        // Parts the target holds beyond the checkpoint (Reconciliation::$extraParts) are sent again: their bytes are
+        // not in the hash state, and writing a part again replaces it.
+        return $this->run($request, $session, $checkpoint->parts, $fingerprint, $sha, $md5, $checkpoint, completingMayHaveStarted: $checkpoint->hasAllParts());
+    }
+
+    /**
+     * @param list<UploadedPart> $parts acknowledged parts so far
+     */
+    private function run(TransferRequest $request, UploadSession $session, array $parts, SourceFingerprint $fingerprint, HashContext $sha, HashContext $md5, TransferCheckpoint $checkpoint, bool $completingMayHaveStarted): TransferResult
+    {
+        $target = $request->target;
         for ($number = count($parts) + 1; $number <= $session->partCount(); ++$number) {
             $stop = $request->control?->stopRequested();
             if ($stop !== null) {
@@ -99,7 +152,7 @@ final readonly class TransferEngine
             return new TransferResult(TransferStatus::Deduplicated, $fingerprint, $sha256, $md5sum, checkpoint: $checkpoint);
         }
 
-        $stored = $target->complete($session, $parts);
+        $stored = $this->complete($request, $session, $parts, $completingMayHaveStarted);
         $info = $target->stat($session->key);
         if ($info === null || $info->size !== $fingerprint->totalSize) {
             throw new VerificationFailed(sprintf(
@@ -110,6 +163,70 @@ final readonly class TransferEngine
         }
 
         return new TransferResult(TransferStatus::Completed, $fingerprint, $sha256, $md5sum, $stored, checkpoint: $checkpoint);
+    }
+
+    /**
+     * Completes the upload, retrying temporary failures like a part. When an attempt's outcome is unknown (its answer
+     * was lost, or the run before a resume may have been completing when it died), the target can still be finishing
+     * that attempt and report the key as taken; a later attempt then finds the session gone and returns the object
+     * (ArchiveStorageAdapter::complete() is safe to repeat).
+     *
+     * @param list<UploadedPart> $parts
+     */
+    private function complete(TransferRequest $request, UploadSession $session, array $parts, bool $outcomeUnknown): StoredObject
+    {
+        for ($attempt = 1; ; ++$attempt) {
+            try {
+                return $request->target->complete($session, $parts);
+            } catch (TransientStorageFailure $e) {
+                $failure = $e;
+                $retryAfter = $e->retryAfterSeconds;
+                $outcomeUnknown = true;
+            } catch (ObjectAlreadyExists $e) {
+                if (!$outcomeUnknown) {
+                    throw $e;
+                }
+                $failure = $e;
+                $retryAfter = null;
+            }
+
+            if ($attempt >= $this->retry->maxAttempts) {
+                throw new RetriesExhausted(sprintf('The upload could not be completed after %d attempts.', $attempt), 0, $failure);
+            }
+            ($this->sleep)($this->retry->delayAfter($attempt, $retryAfter));
+        }
+    }
+
+    /**
+     * An earlier run completed the upload but did not get to report it. The object is returned with the hashes from
+     * the checkpoint, which covers every part. Nothing is sent, the source is not read (unless the saved hash state is
+     * unreadable), and the commit gate is not asked again: the earlier run asked it before completing.
+     */
+    private function recover(TransferRequest $request, Reconciliation $state): TransferResult
+    {
+        $checkpoint = $state->checkpoint;
+        $object = $state->object ?? throw new LogicException('An already completed upload comes with its object.');
+
+        try {
+            $sha = $checkpoint->sha256();
+            $md5 = $checkpoint->md5();
+        } catch (InvalidArgumentException) {
+            $fingerprint = $request->source->open();
+            if (!$checkpoint->fingerprint->matches($fingerprint)) {
+                throw new SourceChanged('The upload was completed earlier, but its saved hash state is unreadable and the source changed since, so the stored object cannot be hashed from the source; start again from byte zero.');
+            }
+            [$sha, $md5] = $this->rehashFromSource($request, $checkpoint->session, $checkpoint, $fingerprint);
+        }
+
+        return new TransferResult(
+            TransferStatus::Completed,
+            $checkpoint->fingerprint,
+            hash_final($sha),
+            hash_final($md5),
+            new StoredObject($object->key, $object->size, $object->remoteETag, $object->lastModified ?? new DateTimeImmutable()),
+            checkpoint: $checkpoint,
+            recovered: true,
+        );
     }
 
     /**
@@ -196,58 +313,17 @@ final readonly class TransferEngine
     }
 
     /**
-     * @return array{UploadSession, list<UploadedPart>, HashContext, HashContext}
+     * @return array{HashContext, HashContext}
      */
-    private function prepareResume(TransferRequest $request, TransferCheckpoint $checkpoint, SourceFingerprint $fingerprint): array
+    private function hashState(TransferRequest $request, TransferCheckpoint $checkpoint, SourceFingerprint $fingerprint): array
     {
-        $target = $request->target;
-        $session = $checkpoint->session;
-        if (!$session->key->equals($request->key)) {
-            throw new InvalidArgumentException('The checkpoint belongs to another object key.');
-        }
-        if ($session->backend !== $target->capabilities()->backend) {
-            throw new ResumeImpossible('The checkpoint belongs to another storage backend.');
-        }
-        if (!$checkpoint->fingerprint->matches($fingerprint)) {
-            $this->abortQuietly($request, $session);
-
-            throw new SourceChanged('The source changed since the checkpoint; start again from byte zero.');
-        }
-        if (!$request->source->isResumable() && $checkpoint->parts !== []) {
-            $this->abortQuietly($request, $session);
-
-            throw new ResumeImpossible('A sequential source cannot continue in the middle of a file.');
-        }
-
-        if ($target->capabilities()->canListParts) {
-            try {
-                $listed = $target->listCompletedParts($session);
-            } catch (UploadSessionNotFound $e) {
-                throw new ResumeImpossible('The upload session no longer exists at the target.', 0, $e);
-            }
-            $remote = [];
-            foreach ($listed as $part) {
-                $remote[$part->number] = $part->remoteId;
-            }
-            foreach ($checkpoint->parts as $part) {
-                if (($remote[$part->number] ?? null) !== $part->remoteId) {
-                    $this->abortQuietly($request, $session);
-
-                    throw new ResumeImpossible(sprintf('The target no longer holds part %d as checkpointed.', $part->number));
-                }
-            }
-        }
-
         try {
-            $sha = $checkpoint->sha256();
-            $md5 = $checkpoint->md5();
+            return [$checkpoint->sha256(), $checkpoint->md5()];
         } catch (InvalidArgumentException) {
             // Hash state from another PHP version, for example: hash the finished parts again from the source,
             // never from the target, whose bytes are what the hash is meant to verify.
-            [$sha, $md5] = $this->rehashFromSource($request, $session, $checkpoint, $fingerprint);
+            return $this->rehashFromSource($request, $checkpoint->session, $checkpoint, $fingerprint);
         }
-
-        return [$session, $checkpoint->parts, $sha, $md5];
     }
 
     /**

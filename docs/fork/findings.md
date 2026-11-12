@@ -117,6 +117,30 @@ Server behaviour the adapter relies on, each pinned in `tests/Integration/Nextcl
   ([`UploadCleanup.php`](https://github.com/nextcloud/server/blob/v35.0.2/apps/dav/lib/BackgroundJob/UploadCleanup.php)).
   An account's upload folders can't be listed (405).
 
+### Worker killed in the middle of a transfer (test services)
+
+Measured on 2026-11-12 with `tests/Integration/Resume/WorkerCrashResumeTest.php`. A worker process sends a file of
+46 MiB and 17 bytes (ten parts of 5 MiB, the last one 1 MiB and 17 bytes) from the fake GOG source and is killed with
+SIGKILL at a chosen moment; nothing in it gets to clean up. A second process then resumes from the last checkpoint the
+first one saved (a JSON file standing in for a database).
+
+| Killed | Checkpointed parts | Target holds beyond the checkpoint | Sent by the resume | Read from the source by the resume |
+|---|---|---|---|---|
+| while sending part 3, with 2,621,440 of its 5,242,880 bytes handed to the HTTP client | 1–2 | nothing | parts 3–10 | parts 3–10 |
+| after the target stored part 3, before its checkpoint | 1–2 | part 3 | parts 3–10 | parts 3–10 |
+| after the target completed the upload, before the engine returned | 1–10 | upload gone, file at the key | nothing | nothing (source not opened) |
+
+The results were the same on the S3 test server, the Nextcloud on local storage and the Nextcloud on object storage,
+and the stored object's SHA-256 matched the source every time.
+
+- **A part upload cut off halfway leaves nothing behind that counts.** `ListParts` doesn't list it. On both Nextclouds
+  the upload folder shows no chunk 3 afterwards, and completing found no other entry in the folder (the adapter refuses
+  to complete over any entry it didn't expect).
+- **Part 3 is sent again even when the target holds it,** because its bytes are not in the checkpoint's hash state.
+  Writing a part again replaces it on all three servers.
+- **Time per case**, both processes together: S3 3.0–3.5 s, Nextcloud on local storage 5.2–7.1 s, Nextcloud on object
+  storage 15.9–18.4 s (about a second more per chunk, see above).
+
 ### GOG metadata and CDN (one read-only probe)
 
 - **Download link:** `files[].downlink` returns JSON with `downlink` (a signed URL on `gog-cdn-fastly.gog.com`) and

@@ -57,6 +57,11 @@ interface ArchiveStorageAdapter
     /**
      * Makes the object visible at its key from exactly the given parts.
      *
+     * Safe to call again when the answer to an earlier call got lost: if the session no longer exists and the key holds
+     * an object of the session's total size, that earlier call succeeded, and the stored object is returned. Keys are
+     * fresh revision keys, so nothing else writes there. Without such an object, a gone session is
+     * UploadSessionNotFound.
+     *
      * @param list<UploadedPart> $parts every part from 1 to the session's part count, once
      *
      * @throws IncompleteUpload|ObjectAlreadyExists|UploadSessionNotFound|TransientStorageFailure

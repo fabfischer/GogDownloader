@@ -130,6 +130,39 @@ abstract class ArchiveStorageAdapterContractTestCase extends TestCase
         self::assertSame($original, implode('', iterator_to_array($this->adapter->openRead($key), false)));
     }
 
+    public function testCompletingAgainAfterSuccessReturnsTheStoredObject(): void
+    {
+        $partSize = $this->partSize();
+        $bytes = $this->bytes(2 * $partSize + 7);
+        $session = $this->adapter->begin(new UploadRequest($this->newKey(), strlen($bytes), $partSize));
+        $parts = $this->uploadAll($session, $bytes);
+        $this->adapter->complete($session, $parts);
+
+        // The answer to the first call got lost on the way back, so the caller repeats it.
+        $again = $this->adapter->complete($session, $parts);
+
+        self::assertTrue($again->key->equals($session->key));
+        self::assertSame(strlen($bytes), $again->size);
+        self::assertSame(hash('sha256', $bytes), hash('sha256', implode('', iterator_to_array($this->adapter->openRead($session->key), false))));
+    }
+
+    public function testCompletingAGoneSessionWithNothingAtTheKeyFails(): void
+    {
+        $partSize = $this->partSize();
+        $bytes = $this->bytes($partSize + 3);
+        $session = $this->adapter->begin(new UploadRequest($this->newKey(), strlen($bytes), $partSize));
+        $parts = $this->uploadAll($session, $bytes);
+        $this->adapter->abort($session);
+
+        try {
+            $this->adapter->complete($session, $parts);
+            self::fail('Expected UploadSessionNotFound');
+        } catch (UploadSessionNotFound) {
+        }
+
+        self::assertNull($this->adapter->stat($session->key));
+    }
+
     public function testAbortDropsTheSessionAndCanBeRepeated(): void
     {
         $partSize = $this->partSize();

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Fork\Transfer;
 
 use App\Storage\ArchiveStorageAdapter;
+use App\Storage\Exception\ObjectAlreadyExists;
 use App\Storage\Exception\TransientStorageFailure;
 use App\Storage\InMemory\InMemoryStorageAdapter;
 use App\Storage\ObjectKey;
@@ -25,6 +26,7 @@ use App\Transfer\Exception\SourceChanged;
 use App\Transfer\Exception\TransientSourceFailure;
 use App\Transfer\Exception\VerificationFailed;
 use App\Transfer\InMemoryCheckpointStore;
+use App\Transfer\Reconciler;
 use App\Transfer\RetryPolicy;
 use App\Transfer\StopRequest;
 use App\Transfer\TransferCheckpoint;
@@ -38,6 +40,7 @@ use PHPUnit\Framework\TestCase;
 
 #[CoversClass(TransferEngine::class)]
 #[CoversClass(TransferCheckpoint::class)]
+#[CoversClass(Reconciler::class)]
 final class TransferEngineTest extends TestCase
 {
     /** 25 bytes in parts of 10: 10 + 10 + 5. */
@@ -321,6 +324,146 @@ final class TransferEngineTest extends TestCase
         $this->engine()->transfer(new TransferRequest(new FakeSource(self::FILE), $target, $this->key, $this->checkpoints));
     }
 
+    public function testATemporaryFailureWhileCompletingIsRetried(): void
+    {
+        $this->target->failNextCompletes(new TransientStorageFailure('502 from the proxy', 7));
+
+        $result = $this->engine()->transfer($this->request(new FakeSource(self::FILE)));
+
+        self::assertSame(TransferStatus::Completed, $result->status);
+        self::assertSame([7.0], $this->slept);
+        self::assertSame(self::FILE, $this->stored());
+    }
+
+    public function testALostAnswerWhileCompletingIsRetriedAndReturnsTheStoredObject(): void
+    {
+        $this->target->loseNextCompleteAnswer(new TransientStorageFailure('connection reset after the request was sent'));
+
+        $result = $this->engine()->transfer($this->request(new FakeSource(self::FILE)));
+
+        self::assertSame(TransferStatus::Completed, $result->status);
+        self::assertFalse($result->recovered);
+        self::assertSame(25, $result->stored?->size);
+        self::assertSame([$this->key->value], $this->target->objectKeys());
+        self::assertSame(self::FILE, $this->stored());
+    }
+
+    public function testATakenKeyAfterAnUnclearAttemptIsRetriedWhileTheTargetFinishesIt(): void
+    {
+        // Nextcloud: a retried MOVE answers 412 while the first one is still assembling the file.
+        $this->target->failNextCompletes(new TransientStorageFailure('504 from the proxy'), new ObjectAlreadyExists('412'));
+
+        $result = $this->engine()->transfer($this->request(new FakeSource(self::FILE)));
+
+        self::assertSame(TransferStatus::Completed, $result->status);
+        self::assertCount(2, $this->slept);
+    }
+
+    public function testATakenKeyOnTheFirstAttemptToCompleteIsNotRetried(): void
+    {
+        $this->target->failNextCompletes(new ObjectAlreadyExists('412'));
+
+        try {
+            $this->engine()->transfer($this->request(new FakeSource(self::FILE)));
+            self::fail('Expected ObjectAlreadyExists');
+        } catch (ObjectAlreadyExists) {
+        }
+
+        self::assertSame([], $this->slept);
+    }
+
+    public function testCompletingGivesUpAfterTheRetryBudgetAndALaterResumeFinishes(): void
+    {
+        $this->target->failNextCompletes(new TransientStorageFailure('a'), new TransientStorageFailure('b'), new TransientStorageFailure('c'));
+
+        try {
+            $this->engine()->transfer($this->request(new FakeSource(self::FILE)));
+            self::fail('Expected RetriesExhausted');
+        } catch (RetriesExhausted $e) {
+            self::assertInstanceOf(TransientStorageFailure::class, $e->getPrevious());
+        }
+        $last = $this->checkpoints->last();
+        self::assertNotNull($last);
+        self::assertTrue($last->hasAllParts());
+        self::assertSame(1, $this->target->openSessionCount());
+
+        $source = new FakeSource(self::FILE);
+        $result = $this->engine()->transfer($this->request($source, resumeFrom: $last));
+
+        self::assertSame(TransferStatus::Completed, $result->status);
+        self::assertSame([], $source->reads);
+        self::assertSame(hash('sha256', self::FILE), $result->sha256);
+        self::assertSame(self::FILE, $this->stored());
+    }
+
+    public function testAResumeFindsTheUploadCompletedByTheRunBeforeIt(): void
+    {
+        // The run completes the upload, then its worker dies before the result is recorded. The job still has the
+        // last checkpoint, which holds every part.
+        $this->engine()->transfer($this->request(new FakeSource(self::FILE)));
+        $last = TransferCheckpoint::fromArray(json_decode((string) json_encode($this->checkpoints->last()?->toArray()), true));
+        $gate = new RecordingCommitGate(allow: true);
+        $source = new FakeSource(self::FILE);
+
+        $result = $this->engine()->transfer($this->request($source, resumeFrom: $last, gate: $gate));
+
+        self::assertSame(TransferStatus::Completed, $result->status);
+        self::assertTrue($result->recovered);
+        self::assertSame(hash('sha256', self::FILE), $result->sha256);
+        self::assertSame(md5(self::FILE), $result->md5);
+        self::assertSame(25, $result->stored?->size);
+        self::assertTrue($result->stored->key->equals($this->key));
+        self::assertSame(0, $source->opens, 'The source is not needed');
+        self::assertSame([], $gate->asked, 'The run before asked the gate before completing');
+    }
+
+    public function testARecoveredUploadWithAnUnreadableHashStateIsHashedFromTheSource(): void
+    {
+        $this->engine()->transfer($this->request(new FakeSource(self::FILE)));
+        $last = $this->checkpoints->last();
+        self::assertNotNull($last);
+        $broken = new TransferCheckpoint($last->session, $last->parts, $last->fingerprint, 'not a hash state', 'neither');
+        $source = new FakeSource(self::FILE);
+
+        $result = $this->engine()->transfer($this->request($source, resumeFrom: $broken));
+
+        self::assertTrue($result->recovered);
+        self::assertSame([[0, 10], [10, 10], [20, 5]], $source->reads);
+        self::assertSame(hash('sha256', self::FILE), $result->sha256);
+    }
+
+    public function testAFullyCheckpointedUploadWhoseSessionExpiredCannotBeResumed(): void
+    {
+        $this->target->failNextCompletes(new TransientStorageFailure('a'), new TransientStorageFailure('b'), new TransientStorageFailure('c'));
+
+        try {
+            $this->engine()->transfer($this->request(new FakeSource(self::FILE)));
+            self::fail('Expected RetriesExhausted');
+        } catch (RetriesExhausted) {
+        }
+        $last = $this->checkpoints->last();
+        self::assertNotNull($last);
+        $this->target->expireSession($last->session);
+
+        $this->expectException(ResumeImpossible::class);
+        $this->engine()->transfer($this->request(new FakeSource(self::FILE), resumeFrom: $last));
+    }
+
+    public function testAPartTheTargetGotAfterTheLastCheckpointIsSentAgain(): void
+    {
+        $checkpoint = $this->pausedCheckpoint(1);
+        // The worker sent part 2 and the target stored it, but the worker died before it could save a checkpoint.
+        $this->target->writePart($checkpoint->session, 2, PartBody::fromString(substr(self::FILE, 10, 10)));
+        $source = new FakeSource(self::FILE);
+
+        $result = $this->engine()->transfer($this->request($source, resumeFrom: $checkpoint));
+
+        self::assertSame(TransferStatus::Completed, $result->status);
+        self::assertSame([[10, 10], [20, 5]], $source->reads, 'Part 2 is read and sent again: its bytes are not in the hash state');
+        self::assertSame(hash('sha256', self::FILE), $result->sha256);
+        self::assertSame(self::FILE, $this->stored());
+    }
+
     private function engine(): TransferEngine
     {
         return new TransferEngine(
@@ -354,9 +497,9 @@ final class TransferEngineTest extends TestCase
         };
     }
 
-    private function pausedCheckpoint(): TransferCheckpoint
+    private function pausedCheckpoint(int $parts = 2): TransferCheckpoint
     {
-        $result = $this->engine()->transfer($this->request(new FakeSource(self::FILE), control: $this->pauseAfter(2)));
+        $result = $this->engine()->transfer($this->request(new FakeSource(self::FILE), control: $this->pauseAfter($parts)));
         self::assertNotNull($result->checkpoint);
 
         return $result->checkpoint;
