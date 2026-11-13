@@ -124,6 +124,11 @@ final class S3StorageAdapter implements ArchiveStorageAdapter
                 // server that never answers it: measured +1 s per part against an S3-compatible server. Sending the
                 // body right away only costs one part's bytes when a request is refused.
                 'expect' => false,
+                // An endpoint must not send the client elsewhere: a redirect to an internal address would turn the
+                // configured endpoint into a way to reach it (SSRF). A redirect from AWS itself (a bucket in another
+                // region, or a new bucket's temporary 307) fails the request; the settings then need the bucket's
+                // region or endpoint.
+                'allow_redirects' => false,
             ],
         ];
         if ($settings->endpoint !== null) {

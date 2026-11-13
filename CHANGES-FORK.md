@@ -80,6 +80,11 @@ get one entry each. Files that only exist in the fork are listed once per area.
     files.
   - Exceptions name operation, S3 error code, HTTP status and request ID; they don't chain the SDK exception, which
     holds the signed request.
+  - Follows no redirect (`allow_redirects` off for the SDK's Guzzle handler). Before, an endpoint could send the
+    client, with its signed request, to any address it named (SSRF). The Nextcloud adapter already followed none.
+    AWS's own redirects (a bucket in another region, a new bucket's temporary 307,
+    [AWS docs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Redirects.html)) now fail the request; the
+    settings then need the bucket's region or endpoint. Test: `tests/Fork/Storage/S3/S3RedirectTest.php`.
   Measurements: [findings](docs/fork/findings.md#s3-part-uploads-s3-compatible-test-server).
 - `src/Storage/Nextcloud/`: `NextcloudStorageAdapter`, the storage contract on Nextcloud's WebDAV chunked upload
   (version 2), with `NextcloudSettings` (base URL, also in a subdirectory; login name and app password; user ID for
